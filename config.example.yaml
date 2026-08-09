@@ -1,0 +1,47 @@
+# Configuración de osap-auth (Auth API v1.0)
+# Copiar a config.yaml y ajustar. Los secretos deben ir en variables de entorno.
+
+app:
+  name: osap-auth
+  env: development            # development | test | production
+  debug: false
+
+server:
+  host: 127.0.0.1
+  port: 8200
+
+database:
+  host: 127.0.0.1
+  port: 3306
+  name: osap_auth
+  user: osap_auth
+  password: ${OSAP_AUTH_DB_PASSWORD}
+
+issuer: https://auth.osap
+audience: osap-api
+access_token_ttl_seconds: 900         # 15 min
+refresh_token_ttl_seconds: 2592000    # 30 días
+verification_token_ttl_hours: 24
+password_reset_token_ttl_hours: 1
+
+# Claves. Nunca commitear. Deben venir de variables de entorno / secrets.
+crypto:
+  email_hmac_pepper: ${OSAP_AUTH_EMAIL_PEPPER}
+  email_aead_key_b64: ${OSAP_AUTH_EMAIL_AEAD_KEY}
+  token_hmac_pepper: ${OSAP_AUTH_TOKEN_PEPPER}
+  jwt_private_key: ${OSAP_AUTH_JWT_PRIVATE_KEY}
+  jwt_public_key: ${OSAP_AUTH_JWT_PUBLIC_KEY}
+  jwt_kid: osap-auth-v1
+
+# Cifrado envolvente: KEK en entorno protegido (no se persiste).
+key_version: 1
+
+rate_limit:
+  register_per_minute: 10
+  login_per_minute: 20
+  resend_verification_per_minute: 5
+  password_reset_request_per_minute: 5
+  password_reset_confirm_per_minute: 10
+
+audit:
+  retention_days: 90

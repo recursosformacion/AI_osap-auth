@@ -1,0 +1,1 @@
+"""Tests de osap-auth."""

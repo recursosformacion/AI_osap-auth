@@ -1,0 +1,18 @@
+[Unit]
+Description=osap-auth API (auth.openmusicrepository.com)
+After=network.target mariadb.service
+Wants=mariadb.service
+
+[Service]
+Type=simple
+User=ocw
+Group=ocw
+WorkingDirectory=/home/ocw/openmusicrepository.com/osap-auth
+ExecStart=/home/ocw/openmusicrepository.com/osap-auth/.venv/bin/uvicorn api.main:create_app_from_settings --factory --host 127.0.0.1 --port 8200
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
