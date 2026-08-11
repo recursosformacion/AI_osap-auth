@@ -39,6 +39,27 @@ def test_oauth_token_issues_service_token(ctx) -> None:
     assert body["scope"] == "storage:read"
 
 
+def test_oauth_token_accepts_form_urlencoded(ctx) -> None:
+    from api.main import create_app
+
+    client_id, secret = _create_client(ctx)
+    app = TestClient(create_app(ctx))
+    r = app.post(
+        "/oauth/token",
+        data={
+            "grant_type": "client_credentials",
+            "client_id": client_id,
+            "client_secret": secret,
+            "scope": "storage:read",
+        },
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["token_type"] == "Bearer"
+    assert body["scope"] == "storage:read"
+
+
 def test_oauth_token_bad_credentials_401(ctx) -> None:
     from api.main import create_app
 
