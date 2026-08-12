@@ -42,6 +42,28 @@ export interface ApiErrorDetail {
   detail?: string
 }
 
+/** Parámetros OIDC que el SPA devuelve al completar la autorización (flujo embebido). */
+export interface CompleteAuthorizationInput {
+  client_id: string
+  redirect_uri: string
+  response_type?: string
+  scope?: string
+  state?: string | null
+  nonce?: string | null
+  code_challenge?: string | null
+  code_challenge_method?: string | null
+}
+
+export interface CompleteAuthorizationResponse {
+  redirect_uri: string
+  code: string
+  state?: string | null
+}
+
+export interface SocialProvidersResponse {
+  providers: string[]
+}
+
 /** Error normalizado del cliente HTTP. */
 export interface HttpError {
   status: number

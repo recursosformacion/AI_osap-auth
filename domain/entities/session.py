@@ -22,6 +22,7 @@ class Session:
         last_used_at: datetime,
         revoked_at: datetime | None = None,
         previous_refresh_token_hash: str | None = None,
+        client_id: str | None = None,
         ip: str | None = None,
         user_agent: str | None = None,
         device_label: str | None = None,
@@ -34,6 +35,7 @@ class Session:
         self.created_at = created_at
         self.last_used_at = last_used_at
         self.revoked_at = revoked_at
+        self.client_id = client_id
         self.ip = ip
         self.user_agent = user_agent
         self.device_label = device_label
@@ -55,6 +57,7 @@ class Session:
         user_id: uuid.UUID,
         refresh_token_hash: str,
         refresh_ttl_seconds: int,
+        client_id: str | None = None,
         ip: str | None = None,
         user_agent: str | None = None,
         device_label: str | None = None,
@@ -67,6 +70,7 @@ class Session:
             refresh_expires_at=now + timedelta(seconds=refresh_ttl_seconds),
             created_at=now,
             last_used_at=now,
+            client_id=client_id,
             ip=ip,
             user_agent=user_agent,
             device_label=device_label,

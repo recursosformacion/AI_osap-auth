@@ -72,6 +72,14 @@ class Settings:
         self.rate_limit = RateLimitConfig()
         self.server_host: str = "127.0.0.1"
         self.server_port: int = 8200
+        self.public_base_url: str = "http://127.0.0.1:8200"
+        self.public_path_prefix: str = ""
+        self.web_base_url: str = "http://127.0.0.1:5173"
+        self.authorization_code_ttl_seconds: int = 300
+        self.cors_origins: list[str] = []
+        self.social_enabled: dict[str, bool] = {}
+        self.social_credentials: dict[str, dict[str, str]] = {}
+        self.social_state_secret: str = ""
         self._yaml_data: dict[str, Any] = {}
 
         if config_file is not None and config_file.exists():
@@ -107,6 +115,29 @@ class Settings:
         self.audit_retention_days = int(data.get("audit_retention_days", self.audit_retention_days))
         self.server_host = server.get("host", self.server_host)
         self.server_port = int(server.get("port", self.server_port))
+        self.public_base_url = data.get("public_base_url", self.public_base_url)
+        self.public_path_prefix = data.get("public_path_prefix", self.public_path_prefix)
+        self.web_base_url = data.get("web_base_url", self.web_base_url)
+        self.authorization_code_ttl_seconds = int(
+            data.get("authorization_code_ttl_seconds", self.authorization_code_ttl_seconds)
+        )
+        origins = data.get("cors_origins", self.cors_origins)
+        if isinstance(origins, str):
+            origins = [o.strip() for o in origins.split(",") if o.strip()]
+        self.cors_origins = list(origins)
+
+        social = data.get("social", {})
+        if isinstance(social, dict):
+            for provider, conf in social.items():
+                conf = conf or {}
+                enabled = bool(conf.get("enabled", False))
+                self.social_enabled[provider] = enabled
+                if enabled:
+                    self.social_credentials[provider] = {
+                        "client_id": str(conf.get("client_id", "")),
+                        "client_secret": str(conf.get("client_secret", "")),
+                    }
+        self.social_state_secret = data.get("social_state_secret", self.social_state_secret)
 
         # Guardamos la sección crypto/db para aplicarla con prioridad de YAML (dev).
         self._yaml_data = data

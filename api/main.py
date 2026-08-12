@@ -7,15 +7,37 @@ from contextlib import asynccontextmanager
 
 import aiomysql
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from api.errors import register_exception_handlers
-from api.routes import auth, jwks, oauth, password_reset, system
+from api.routes import auth, jwks, oauth, oidc, password_reset, social, system
 from application.context import AuthContext
 from infrastructure.config import Settings, load_settings
 from infrastructure.container import build_context
 from infrastructure.db.connection import create_pool
 
 APP_VERSION = "1.0.0"
+
+
+def _add_middleware(app: FastAPI, cors_origins: list[str]) -> None:
+    if cors_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=cors_origins,
+            allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+            allow_headers=["Authorization", "Content-Type"],
+            allow_credentials=False,
+        )
+
+
+def _include_routers(app: FastAPI) -> None:
+    app.include_router(system.router)
+    app.include_router(auth.router)
+    app.include_router(password_reset.router)
+    app.include_router(oauth.router)
+    app.include_router(jwks.router)
+    app.include_router(oidc.router)
+    app.include_router(social.router)
 
 
 def create_app(ctx: AuthContext) -> FastAPI:
@@ -28,11 +50,7 @@ def create_app(ctx: AuthContext) -> FastAPI:
     app = FastAPI(title="OSAP Auth", version=APP_VERSION, lifespan=lifespan)
     app.state.ctx = ctx  # disponible incluso sin ejecutar el lifespan (tests/cli)
     register_exception_handlers(app)
-    app.include_router(system.router)
-    app.include_router(auth.router)
-    app.include_router(password_reset.router)
-    app.include_router(oauth.router)
-    app.include_router(jwks.router)
+    _include_routers(app)
     return app
 
 
@@ -60,11 +78,8 @@ def create_app_from_settings(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title="OSAP Auth", version=APP_VERSION, lifespan=lifespan)
     register_exception_handlers(app)
-    app.include_router(system.router)
-    app.include_router(auth.router)
-    app.include_router(password_reset.router)
-    app.include_router(oauth.router)
-    app.include_router(jwks.router)
+    _add_middleware(app, settings.cors_origins)
+    _include_routers(app)
     return app
 
 

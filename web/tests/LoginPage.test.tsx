@@ -24,6 +24,7 @@ vi.mock('../src/api/authApi', () => ({
       status: 'active',
       created_at: null,
     })),
+    getSocialProviders: vi.fn(async () => ({ providers: [] })),
   },
 }))
 

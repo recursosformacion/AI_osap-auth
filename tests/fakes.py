@@ -11,11 +11,17 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 
 from application.context import AuthContext, AuthSettingsView
 from domain.entities.audit_event import AuditEvent
+from domain.entities.authorization_code import AuthorizationCode
+from domain.entities.oauth_client import OAuthClient
+from domain.entities.provider_account import ProviderAccount
 from domain.entities.service_client import ServiceClient
 from domain.entities.session import Session
 from domain.entities.token_record import TokenPurpose, TokenRecord
 from domain.entities.user import User
 from domain.ports.audit_repository import AuditRepository
+from domain.ports.authorization_code_repository import AuthorizationCodeRepository
+from domain.ports.oauth_client_repository import OAuthClientRepository
+from domain.ports.provider_account_repository import ProviderAccountRepository
 from domain.ports.service_client_repository import ServiceClientRepository
 from domain.ports.session_repository import SessionRepository
 from domain.ports.token_repository import TokenRepository
@@ -138,6 +144,44 @@ class FakeServiceClientRepository(ServiceClientRepository):
         self._clients[str(client.client_id)] = client
 
 
+class FakeOAuthClientRepository(OAuthClientRepository):
+    def __init__(self) -> None:
+        self._clients: dict[str, OAuthClient] = {}
+
+    async def get_by_id(self, client_id: str) -> OAuthClient | None:
+        return self._clients.get(client_id)
+
+    async def save(self, client: OAuthClient) -> None:
+        self._clients[str(client.client_id)] = client
+
+
+class FakeAuthorizationCodeRepository(AuthorizationCodeRepository):
+    def __init__(self) -> None:
+        self._codes: dict[str, AuthorizationCode] = {}
+
+    async def get_by_hash(self, code_hash: str) -> AuthorizationCode | None:
+        return self._codes.get(code_hash)
+
+    async def save(self, code: AuthorizationCode) -> None:
+        self._codes[code.code_hash] = code
+
+    async def mark_used(self, code_id: uuid.UUID) -> None:
+        for c in self._codes.values():
+            if c.id == code_id:
+                c.mark_used()
+
+
+class FakeProviderAccountRepository(ProviderAccountRepository):
+    def __init__(self) -> None:
+        self._accounts: dict[tuple[str, str], ProviderAccount] = {}
+
+    async def get_by_provider_sub(self, provider: str, provider_sub: str) -> ProviderAccount | None:
+        return self._accounts.get((provider, provider_sub))
+
+    async def save(self, account: ProviderAccount) -> None:
+        self._accounts[(account.provider, account.provider_sub)] = account
+
+
 class FakeAuditRepository(AuditRepository):
     def __init__(self) -> None:
         self._events: list[AuditEvent] = []
@@ -174,6 +218,12 @@ def make_settings_view() -> AuthSettingsView:
         resend_verification_per_minute=1000,
         password_reset_request_per_minute=1000,
         password_reset_confirm_per_minute=1000,
+        public_base_url="https://auth.osap",
+        public_path_prefix="",
+        web_base_url="http://osap-auth",
+        authorization_code_ttl_seconds=300,
+        social_state_secret="test-social-state-secret",
+        social_providers_enabled={},
     )
 
 
@@ -183,7 +233,11 @@ def make_context(
     sessions: FakeSessionRepository | None = None,
     tokens: FakeTokenRepository | None = None,
     clients: FakeServiceClientRepository | None = None,
+    oauth_clients: FakeOAuthClientRepository | None = None,
+    authorization_codes: FakeAuthorizationCodeRepository | None = None,
+    provider_accounts: FakeProviderAccountRepository | None = None,
     audit: FakeAuditRepository | None = None,
+    social_providers: dict[str, object] | None = None,
 ) -> tuple[AuthContext, list[object]]:
     private_pem, public_pem = make_rsa_keys()
     provider = PyJwtTokenProvider(
@@ -202,6 +256,9 @@ def make_context(
         sessions=sessions or FakeSessionRepository(),
         tokens=tokens or FakeTokenRepository(),
         clients=clients or FakeServiceClientRepository(),
+        oauth_clients=oauth_clients or FakeOAuthClientRepository(),
+        authorization_codes=authorization_codes or FakeAuthorizationCodeRepository(),
+        provider_accounts=provider_accounts or FakeProviderAccountRepository(),
         audit=audit or FakeAuditRepository(),
         rate_limiter=MemoryRateLimiter(),
         password_hasher=Argon2PasswordHasher(),
@@ -211,5 +268,6 @@ def make_context(
         token_provider=provider,
         events=LoggingEventPublisher(),
         settings=make_settings_view(),
+        social_providers=social_providers or {},  # type: ignore[arg-type]
     )
     return ctx, [provider, protector, ctx.events]

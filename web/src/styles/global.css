@@ -93,6 +93,47 @@ body {
   margin: 12px 0 4px;
 }
 
+.auth-embed-label {
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin: 0 0 4px;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--color-border, rgba(0, 0, 0, 0.1));
+}
+
+.link-as-button {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--color-primary);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.link-as-button:hover {
+  text-decoration: underline;
+}
+
 .auth-subtitle {
   color: var(--color-muted);
   font-size: 14px;

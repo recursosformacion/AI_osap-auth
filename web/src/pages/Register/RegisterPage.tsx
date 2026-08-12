@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 
 import { authApi } from '../../api/authApi'
 import { AuthLayout } from '../../components/AuthLayout'
@@ -9,7 +9,33 @@ import { PasswordField } from '../../components/PasswordField'
 import { useSubmission } from '../../hooks/useSubmission'
 import { isValidEmail, passwordMessage } from '../../utils/validation'
 
+/** Reconstruye el query string OIDC (embebido) para mantener el contexto entre páginas. */
+function oidcQuery(searchParams: URLSearchParams): string {
+  const keys = [
+    'embed',
+    'client_id',
+    'redirect_uri',
+    'response_type',
+    'scope',
+    'state',
+    'nonce',
+    'code_challenge',
+    'code_challenge_method',
+  ]
+  const params = new URLSearchParams()
+  for (const key of keys) {
+    const value = searchParams.get(key)
+    if (value) params.set(key, value)
+  }
+  const qs = params.toString()
+  return qs ? `?${qs}` : ''
+}
+
 export function RegisterPage() {
+  const [searchParams] = useSearchParams()
+  const embedded = searchParams.get('embed') === '1' && Boolean(searchParams.get('client_id'))
+  const loginTarget = `/auth/login${oidcQuery(searchParams)}`
+
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -38,12 +64,12 @@ export function RegisterPage() {
 
   if (done) {
     return (
-      <AuthLayout title="Cuenta creada" subtitle="Un último paso">
+      <AuthLayout title="Cuenta creada" subtitle="Un último paso" embedded={embedded}>
         <div className="alert alert-success" role="status">
           Hemos creado tu cuenta. Comprueba tu correo electrónico para activarla.
         </div>
         <div className="actions">
-          <Link className="btn btn-primary" to="/auth/login">
+          <Link className="btn btn-primary" to={loginTarget}>
             Ir a iniciar sesión
           </Link>
         </div>
@@ -52,7 +78,7 @@ export function RegisterPage() {
   }
 
   return (
-    <AuthLayout title="Crear una cuenta" subtitle="Únete a OSAP">
+    <AuthLayout title="Crear una cuenta" subtitle="Únete a OSAP" embedded={embedded}>
       <ErrorMessage message={fieldError ?? error} />
       <form
         noValidate
@@ -102,7 +128,7 @@ export function RegisterPage() {
       </form>
       <p className="muted text-center" style={{ marginTop: 16 }}>
         ¿Ya tienes cuenta?{' '}
-        <Link className="link" to="/auth/login">
+        <Link className="link" to={loginTarget}>
           Inicia sesión
         </Link>
       </p>

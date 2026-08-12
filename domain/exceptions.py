@@ -119,3 +119,37 @@ class RateLimitedError(DomainError):
     """Se ha superado el límite de peticiones."""
 
     status_code = 429
+
+
+class OAuthError(DomainError):
+    """Error del protocolo OAuth2/OIDC (token o authorize).
+
+    `redirect_uri`/`state` se usan para devolver el error redirigiendo al RP cuando el
+    cliente y la redirect_uri son válidos; si son None, el error se responde directamente.
+    """
+
+    status_code = 400
+
+    def __init__(
+        self,
+        error: str,
+        error_description: str = "",
+        *,
+        redirect_uri: str | None = None,
+        state: str | None = None,
+    ) -> None:
+        self.error = error
+        self.error_description = error_description
+        self.redirect_uri = redirect_uri
+        self.state = state
+        super().__init__(error_description or error)
+
+
+class OAuthClientNotFoundError(DomainError):
+    """client_id o redirect_uri de un RP no válidos (no se redirige al RP)."""
+
+    status_code = 400
+
+    def __init__(self, message: str = "", *, error: str = "invalid_client") -> None:
+        self.error = error
+        super().__init__(message or error)

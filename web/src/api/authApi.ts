@@ -5,10 +5,13 @@
 
 import { httpClient } from './httpClient'
 import type {
+  CompleteAuthorizationInput,
+  CompleteAuthorizationResponse,
   LoginResponse,
   MessageResponse,
   RegisterResponse,
   SessionInfo,
+  SocialProvidersResponse,
   UserMe,
 } from './types'
 
@@ -30,6 +33,12 @@ export const authApi = {
   },
   login(email: string, password: string): Promise<LoginResponse> {
     return httpClient.post<LoginResponse>('/auth/login', { email, password })
+  },
+  completeAuthorization(input: CompleteAuthorizationInput): Promise<CompleteAuthorizationResponse> {
+    return httpClient.post<CompleteAuthorizationResponse>('/auth/authorize/complete', input)
+  },
+  getSocialProviders(): Promise<SocialProvidersResponse> {
+    return httpClient.get<SocialProvidersResponse>('/auth/oauth/providers')
   },
   refresh(refreshToken: string): Promise<LoginResponse> {
     return httpClient.post<LoginResponse>('/auth/refresh', { refresh_token: refreshToken })

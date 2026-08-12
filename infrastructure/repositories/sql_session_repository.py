@@ -22,6 +22,7 @@ def _from_row(row: dict[str, Any]) -> Session:
         created_at=row["created_at"],
         last_used_at=row["last_used_at"],
         revoked_at=row["revoked_at"],
+        client_id=row["client_id"] if row.get("client_id") else None,
         ip=row["ip"],
         user_agent=row["user_agent"],
         device_label=row["device_label"],
@@ -73,8 +74,8 @@ class SqlSessionRepository(SessionRepository):
                 INSERT INTO sessions
                   (id, user_id, refresh_token_hash, previous_refresh_token_hash,
                    refresh_expires_at, created_at, last_used_at, revoked_at,
-                   ip, user_agent, device_label)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                   client_id, ip, user_agent, device_label)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 ON DUPLICATE KEY UPDATE
                   refresh_token_hash=VALUES(refresh_token_hash),
                   previous_refresh_token_hash=VALUES(previous_refresh_token_hash),
@@ -91,8 +92,8 @@ class SqlSessionRepository(SessionRepository):
                     session.created_at,
                     session.last_used_at,
                     session.revoked_at,
-                    session.ip,
-                    session.user_agent,
+                    str(session.client_id) if session.client_id else None,
+                    session.ip,                    session.user_agent,
                     session.device_label,
                 ),
             )

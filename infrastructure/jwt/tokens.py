@@ -46,12 +46,15 @@ class PyJwtTokenProvider(TokenProvider):
         email_verified: bool,
         scope: str,
         ttl_seconds: int,
+        audience: str | None = None,
+        nonce: str | None = None,
+        issuer: str | None = None,
     ) -> str:
         now = datetime.now(UTC)
         payload: dict[str, Any] = {
-            "iss": self._issuer,
+            "iss": issuer or self._issuer,
             "sub": str(user_id),
-            "aud": self._audience,
+            "aud": audience or self._audience,
             "jti": str(session_id),
             "roles": roles,
             "email_verified": email_verified,
@@ -61,6 +64,8 @@ class PyJwtTokenProvider(TokenProvider):
             "iat": int(now.timestamp()),
             "exp": int((now + timedelta(seconds=ttl_seconds)).timestamp()),
         }
+        if nonce:
+            payload["nonce"] = nonce
         return self._encode(payload)
 
     def issue_service_token(

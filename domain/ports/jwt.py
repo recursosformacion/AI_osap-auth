@@ -22,6 +22,9 @@ class TokenProvider(ABC):
         email_verified: bool,
         scope: str,
         ttl_seconds: int,
+        audience: str | None = None,
+        nonce: str | None = None,
+        issuer: str | None = None,
     ) -> str: ...
 
     @abstractmethod

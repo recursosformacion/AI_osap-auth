@@ -3,6 +3,7 @@
 Comandos:
   migrate                    Aplica las migraciones Alembic a la BD.
   create-client --scopes=...  Crea un cliente de servicio y muestra id + secreto.
+  register-oauth-client       Registra un cliente OIDC (relying party) y muestra id + secreto.
   set-admin --email=...       Promueve a admin (y verifica/activa) la cuenta por email.
   list-users                  Lista usuarios (email descifrado, roles, estado).
 """
@@ -12,6 +13,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import sys
+import uuid
 
 import aiomysql
 
@@ -32,6 +34,32 @@ def _make_parser() -> argparse.ArgumentParser:
     create_client = sub.add_parser("create-client", help="Crea un cliente de servicio")
     create_client.add_argument(
         "--scopes", required=True, help="Scopes separados por coma (p.ej. storage:read)"
+    )
+
+    register_oauth = sub.add_parser(
+        "register-oauth-client", help="Registra un cliente OIDC (relying party)"
+    )
+    register_oauth.add_argument(
+        "--redirect-uris", required=True, help="Redirect URIs separadas por coma"
+    )
+    register_oauth.add_argument(
+        "--allowed-hosts",
+        default=None,
+        help="Hosts permitidos para redirect_uri (coma). Por defecto: hosts de las redirect_uris",
+    )
+    register_oauth.add_argument(
+        "--scopes", default="openid,profile,email", help="Scopes permitidos (coma)"
+    )
+    register_oauth.add_argument(
+        "--grant-types", default="authorization_code,refresh_token", help="Grant types (coma)"
+    )
+    register_oauth.add_argument(
+        "--client-id",
+        default=None,
+        help="client_id (UUID) fijo; si no se indica se genera uno nuevo",
+    )
+    register_oauth.add_argument(
+        "--no-pkce", action="store_true", help="No exigir PKCE (por defecto se exige)"
     )
 
     set_admin = sub.add_parser("set-admin", help="Promueve a admin y verifica/activa una cuenta")
@@ -91,6 +119,51 @@ async def _list_users() -> None:
     await pool.wait_closed()
 
 
+async def _register_oauth_client(
+    redirect_uris: str,
+    allowed_hosts: str | None,
+    scopes: str,
+    grant_types: str,
+    client_id: str | None,
+    require_pkce: bool,
+) -> None:
+    import urllib.parse
+
+    from domain.entities.oauth_client import OAuthClient
+
+    ctx, pool = await _with_context()
+    redirect_list = [u.strip() for u in redirect_uris.split(",") if u.strip()]
+    scope_list = [s.strip() for s in scopes.split(",") if s.strip()]
+    grant_list = [g.strip() for g in grant_types.split(",") if g.strip()]
+    if allowed_hosts is not None:
+        host_list = [h.strip() for h in allowed_hosts.split(",") if h.strip()]
+    else:
+        host_list = []
+        for uri in redirect_list:
+            host = urllib.parse.urlparse(uri).hostname
+            if host and host not in host_list:
+                host_list.append(host)
+    raw_secret = ctx.secret_generator.generate(48)
+    client = OAuthClient.new(
+        client_id=client_id or f"rp-{uuid.uuid4().hex}",
+        client_secret_hash=ctx.token_hasher.hash(raw_secret),
+        redirect_uris=redirect_list,
+        allowed_redirect_hosts=host_list,
+        grant_types=grant_list,
+        allowed_scopes=scope_list,
+        pkce_required=require_pkce,
+        token_endpoint_auth_method="client_secret_post",
+    )
+    await ctx.oauth_clients.save(client)
+    print("client_id:    ", client.client_id)
+    print("client_secret:", raw_secret)
+    print("redirect_uris:", redirect_list)
+    print("allowed_hosts:", host_list)
+    print("GUARDA EL SECRETO: solo se muestra una vez.")
+    pool.close()
+    await pool.wait_closed()
+
+
 async def _set_admin(email: str) -> None:
     from datetime import UTC, datetime
 
@@ -126,6 +199,17 @@ def main() -> None:
         run_migrations(settings.database.sync_dsn)
     elif args.command == "create-client":
         asyncio.run(_create_client(args.scopes))
+    elif args.command == "register-oauth-client":
+        asyncio.run(
+            _register_oauth_client(
+                redirect_uris=args.redirect_uris,
+                allowed_hosts=args.allowed_hosts,
+                scopes=args.scopes,
+                grant_types=args.grant_types,
+                client_id=args.client_id,
+                require_pkce=not args.no_pkce,
+            )
+        )
     elif args.command == "list-users":
         asyncio.run(_list_users())
     elif args.command == "set-admin":
