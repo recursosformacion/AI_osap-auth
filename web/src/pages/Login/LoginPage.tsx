@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { authApi } from '../../api/authApi'
+import { getBaseUrl } from '../../api/httpClient'
 import { useAuth } from '../../auth/AuthContext'
 import { AuthLayout } from '../../components/AuthLayout'
 import { ErrorMessage } from '../../components/ErrorMessage'
@@ -85,6 +86,7 @@ export function LoginPage() {
   }, [])
 
   const socialQuery = oidcSearch(searchParams)
+  const apiBase = getBaseUrl().replace(/\/$/, '')
 
   const { run: runLogin, submitting: submittingLogin, error: loginError } = useSubmission(
     async () => {
@@ -203,7 +205,7 @@ export function LoginPage() {
                 <a
                   key={provider}
                   className="btn btn-outline"
-                  href={`/auth/oauth/${provider}${socialQuery}`}
+                  href={`${apiBase}/auth/oauth/${provider}${socialQuery}`}
                 >
                   {SOCIAL_LABELS[provider] ?? `Continuar con ${provider}`}
                 </a>
