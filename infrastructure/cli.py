@@ -12,10 +12,13 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 import sys
 import uuid
+from pathlib import Path
 
 import aiomysql
+import yaml
 
 from application.context import AuthContext
 from domain.entities.user import UserStatus
@@ -189,6 +192,19 @@ async def _set_admin(email: str) -> None:
 
 
 def main() -> None:
+    try:
+        from osap.bootstrap.configuration import validate_generic_service_config
+    except ImportError:
+        validate_generic_service_config = None  # type: ignore[assignment]
+
+    if validate_generic_service_config is not None:
+        settings = load_settings()
+        config_path = settings.config_yaml() or (Path(__file__).resolve().parent.parent / "config.yaml")
+        data = {}
+        if config_path.exists():
+            data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+        validate_generic_service_config("osap-auth", data, config_path)
+
     args = _make_parser().parse_args()
     if args.command == "migrate":
         from infrastructure.config import load_settings as _ls
