@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import os
 import sys
 import uuid
 from pathlib import Path
@@ -37,6 +36,12 @@ def _make_parser() -> argparse.ArgumentParser:
     create_client = sub.add_parser("create-client", help="Crea un cliente de servicio")
     create_client.add_argument(
         "--scopes", required=True, help="Scopes separados por coma (p.ej. storage:read)"
+    )
+    create_client.add_argument(
+        "--audiences",
+        default=None,
+        help="Audiencias permitidas separadas por coma (p.ej. osap-support); "
+        "vacío = solo audiencia global",
     )
 
     register_oauth = sub.add_parser(
@@ -70,7 +75,7 @@ def _make_parser() -> argparse.ArgumentParser:
     return parser
 
 
-async def _create_client(scopes: str) -> None:
+async def _create_client(scopes: str, audiences: str | None = None) -> None:
     from application.use_cases.service_clients import CreateServiceClientUseCase
 
     settings = load_settings()
@@ -83,7 +88,10 @@ async def _create_client(scopes: str) -> None:
     )
     ctx = build_context(settings, pool)
     result = await CreateServiceClientUseCase(ctx).execute(
-        scopes=[s.strip() for s in scopes.split(",") if s.strip()]
+        scopes=[s.strip() for s in scopes.split(",") if s.strip()],
+        allowed_audiences=(
+            [a.strip() for a in audiences.split(",") if a.strip()] if audiences else None
+        ),
     )
     print("client_id:    ", result.client_id)
     print("client_secret:", result.client_secret)
@@ -199,8 +207,9 @@ def main() -> None:
 
     if validate_generic_service_config is not None:
         settings = load_settings()
-        config_path = settings.config_yaml() or (Path(__file__).resolve().parent.parent / "config.yaml")
-        data = {}
+        fallback_config = Path(__file__).resolve().parent.parent / "config.yaml"
+        config_path = settings.config_yaml() or fallback_config
+        data: dict[str, object] = {}
         if config_path.exists():
             data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
         validate_generic_service_config("osap-auth", data, config_path)
@@ -214,7 +223,7 @@ def main() -> None:
 
         run_migrations(settings.database.sync_dsn)
     elif args.command == "create-client":
-        asyncio.run(_create_client(args.scopes))
+        asyncio.run(_create_client(args.scopes, args.audiences))
     elif args.command == "register-oauth-client":
         asyncio.run(
             _register_oauth_client(

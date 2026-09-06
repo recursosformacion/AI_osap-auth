@@ -8,7 +8,12 @@ from application.audit import audit
 from application.context import AuthContext
 from domain.entities.session import Session
 from domain.entities.user import UserStatus
-from domain.exceptions import AccountDisabledError, InvalidCredentialsError, RateLimitedError
+from domain.exceptions import (
+    AccountDisabledError,
+    InvalidCredentialsError,
+    RateLimitedError,
+    UnauthorizedError,
+)
 
 
 @dataclass
@@ -25,8 +30,17 @@ class LoginUseCase:
         self._ctx = ctx
 
     async def execute(
-        self, *, email: str, password: str, ip: str | None, user_agent: str | None
+        self,
+        *,
+        email: str,
+        password: str,
+        ip: str | None,
+        user_agent: str | None,
+        audience: str | None = None,
     ) -> LoginResult:
+        if audience is not None and audience not in self._ctx.settings.allowed_token_audiences:
+            raise UnauthorizedError("audiencia no permitida")
+
         allowed = await self._ctx.rate_limiter.check_and_increment(
             f"login:{ip or 'unknown'}",
             self._ctx.settings.login_per_minute,
@@ -86,6 +100,7 @@ class LoginUseCase:
             email_verified=user.email_verified,
             scope=scope,
             ttl_seconds=self._ctx.settings.access_token_ttl_seconds,
+            audience=audience,
         )
         await audit(
             self._ctx,

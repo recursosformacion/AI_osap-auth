@@ -34,6 +34,7 @@ class IssueServiceTokenUseCase:
         requested_scope: str,
         ip: str | None,
         user_agent: str | None,
+        audience: str | None = None,
     ) -> ServiceTokenResult:
         try:
             parsed_id = uuid.UUID(client_id)
@@ -47,10 +48,15 @@ class IssueServiceTokenUseCase:
         if not client.enabled:
             raise ServiceClientDisabledError("cliente de servicio deshabilitado")
 
+        if audience is not None and not client.allows_audience(audience):
+            # Allowlist por cliente (patrón del scope): el cliente no puede pedir esta
+            # audiencia. La audiencia por defecto (global) no necesita allowlist.
+            raise ServiceClientNotFoundError("audiencia no permitida")
+
         scope = self._resolve_scope(requested_scope, client.scopes)
         ttl = 300  # 5 minutos
         token = self._ctx.token_provider.issue_service_token(
-            client=client, scope=scope, ttl_seconds=ttl
+            client=client, scope=scope, ttl_seconds=ttl, audience=audience
         )
         await audit(
             self._ctx,

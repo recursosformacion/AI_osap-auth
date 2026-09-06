@@ -74,12 +74,13 @@ class PyJwtTokenProvider(TokenProvider):
         client: ServiceClient,
         scope: str,
         ttl_seconds: int,
+        audience: str | None = None,
     ) -> str:
         now = datetime.now(UTC)
         payload: dict[str, Any] = {
             "iss": self._issuer,
             "sub": str(client.client_id),
-            "aud": self._audience,
+            "aud": audience or self._audience,
             "jti": str(uuid.uuid4()),
             "scope": scope,
             "typ": "service",

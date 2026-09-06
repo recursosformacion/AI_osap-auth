@@ -76,6 +76,7 @@ async def oauth_token(
                 client_id=body.get("client_id", ""),
                 client_secret=body.get("client_secret", ""),
                 requested_scope=body.get("scope", ""),
+                audience=body.get("audience"),
                 ip=ip,
                 user_agent=ua,
             )

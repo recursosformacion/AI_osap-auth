@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 
 from application.audit import audit
 from application.context import AuthContext
-from domain.exceptions import InvalidTokenError, TokenReuseDetectedError
+from domain.exceptions import InvalidTokenError, TokenReuseDetectedError, UnauthorizedError
 from domain.util import ensure_utc
 
 
@@ -22,8 +22,16 @@ class RefreshUseCase:
         self._ctx = ctx
 
     async def execute(
-        self, *, refresh_token: str, ip: str | None, user_agent: str | None
+        self,
+        *,
+        refresh_token: str,
+        ip: str | None,
+        user_agent: str | None,
+        audience: str | None = None,
     ) -> RefreshResult:
+        if audience is not None and audience not in self._ctx.settings.allowed_token_audiences:
+            raise UnauthorizedError("audiencia no permitida")
+
         provided_hash = self._ctx.token_hasher.hash(refresh_token)
         session = await self._ctx.sessions.get_by_refresh_hash(provided_hash)
 
@@ -91,6 +99,7 @@ class RefreshUseCase:
             email_verified=user.email_verified,
             scope="openid profile api:vote",
             ttl_seconds=self._ctx.settings.access_token_ttl_seconds,
+            audience=audience,
         )
         await audit(
             self._ctx,

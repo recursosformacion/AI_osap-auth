@@ -113,7 +113,11 @@ async def login(
     ua: str | None = Depends(client_user_agent),
 ) -> LoginResponse:
     result = await LoginUseCase(ctx).execute(
-        email=body.email, password=body.password, ip=ip, user_agent=ua
+        email=body.email,
+        password=body.password,
+        audience=body.audience,
+        ip=ip,
+        user_agent=ua,
     )
     return LoginResponse(
         access_token=result.access_token,
@@ -132,10 +136,14 @@ async def refresh(
     ua: str | None = Depends(client_user_agent),
 ) -> LoginResponse:
     result = await RefreshUseCase(ctx).execute(
-        refresh_token=body.refresh_token, ip=ip, user_agent=ua
+        refresh_token=body.refresh_token,
+        audience=body.audience,
+        ip=ip,
+        user_agent=ua,
     )
     claims = ctx.token_provider.verify_access_token(
-        result.access_token, expected_audience=ctx.settings.audience
+        result.access_token,
+        expected_audience=body.audience or ctx.settings.audience,
     )
     user = await ctx.users.get_by_id(uuid.UUID(claims["sub"]))
     if user is None:

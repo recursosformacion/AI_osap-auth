@@ -15,11 +15,17 @@ from infrastructure.repositories._helpers import cursor
 
 def _from_row(row: dict[str, Any]) -> ServiceClient:
     scopes = json.loads(row["scopes"]) if isinstance(row["scopes"], str) else row["scopes"]
+    allowed_raw = row.get("allowed_audiences")
+    if isinstance(allowed_raw, str):
+        allowed = json.loads(allowed_raw)
+    else:
+        allowed = allowed_raw or []
     return ServiceClient(
         client_id=uuid.UUID(row["client_id"]),
         client_secret_hash=row["client_secret_hash"],
         scopes=scopes,
         enabled=bool(row["enabled"]),
+        allowed_audiences=allowed,
         created_at=row["created_at"],
     )
 
@@ -36,21 +42,24 @@ class SqlServiceClientRepository(ServiceClientRepository):
 
     async def save(self, client: ServiceClient) -> None:
         scopes = json.dumps(client.scopes)
+        audiences = json.dumps(client.allowed_audiences)
         async with cursor(self._pool) as cur:
             await cur.execute(
                 """
                 INSERT INTO service_clients
-                  (client_id, client_secret_hash, scopes, enabled, created_at)
-                VALUES (%s,%s,%s,%s,%s)
+                  (client_id, client_secret_hash, scopes, allowed_audiences, enabled, created_at)
+                VALUES (%s,%s,%s,%s,%s,%s)
                 ON DUPLICATE KEY UPDATE
                   client_secret_hash=VALUES(client_secret_hash),
                   scopes=VALUES(scopes),
+                  allowed_audiences=VALUES(allowed_audiences),
                   enabled=VALUES(enabled)
                 """,
                 (
                     str(client.client_id),
                     client.client_secret_hash,
                     scopes,
+                    audiences,
                     client.enabled,
                     client.created_at,
                 ),

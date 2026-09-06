@@ -69,6 +69,7 @@ class Settings:
         self.password_reset_token_ttl_hours: float = 1.0
         self.key_version: int = 1
         self.audit_retention_days: int = 90
+        self.allowed_token_audiences: list[str] = []
         self.rate_limit = RateLimitConfig()
         self.server_host: str = "127.0.0.1"
         self.server_port: int = 8200
@@ -125,6 +126,11 @@ class Settings:
         if isinstance(origins, str):
             origins = [o.strip() for o in origins.split(",") if o.strip()]
         self.cors_origins = list(origins)
+
+        audiences = data.get("allowed_token_audiences", self.allowed_token_audiences)
+        if isinstance(audiences, str):
+            audiences = [a.strip() for a in audiences.split(",") if a.strip()]
+        self.allowed_token_audiences = list(audiences)
 
         social = data.get("social", {})
         if isinstance(social, dict):

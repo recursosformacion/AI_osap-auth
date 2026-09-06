@@ -19,7 +19,12 @@ class CreateServiceClientUseCase:
     def __init__(self, ctx: AuthContext) -> None:
         self._ctx = ctx
 
-    async def execute(self, *, scopes: list[str]) -> CreateServiceClientResult:
+    async def execute(
+        self,
+        *,
+        scopes: list[str],
+        allowed_audiences: list[str] | None = None,
+    ) -> CreateServiceClientResult:
         invalid = [s for s in scopes if s not in VALID_SCOPES]
         if invalid:
             raise ServiceClientNotFoundError(f"scopes inválidos: {invalid}")
@@ -28,6 +33,7 @@ class CreateServiceClientUseCase:
         client = ServiceClient.new(
             client_secret_hash=self._ctx.token_hasher.hash(raw_secret),
             scopes=scopes,
+            allowed_audiences=allowed_audiences,
         )
         await self._ctx.clients.save(client)
         return CreateServiceClientResult(client_id=str(client.client_id), client_secret=raw_secret)

@@ -14,10 +14,12 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+    audience: str | None = None
 
 
 class RefreshRequest(BaseModel):
     refresh_token: str
+    audience: str | None = None
 
 
 class VerifyEmailRequest(BaseModel):

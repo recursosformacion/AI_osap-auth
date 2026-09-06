@@ -34,6 +34,7 @@ class TokenProvider(ABC):
         client: ServiceClient,
         scope: str,
         ttl_seconds: int,
+        audience: str | None = None,
     ) -> str: ...
 
     @abstractmethod
