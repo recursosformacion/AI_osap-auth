@@ -37,6 +37,7 @@ def build_settings_view(settings: Settings) -> AuthSettingsView:
     return AuthSettingsView(
         issuer=settings.issuer,
         audience=settings.audience,
+        allowed_token_audiences=settings.allowed_token_audiences,
         access_token_ttl_seconds=settings.access_token_ttl_seconds,
         refresh_token_ttl_seconds=settings.refresh_token_ttl_seconds,
         verification_token_ttl_hours=settings.verification_token_ttl_hours,

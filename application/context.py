@@ -30,6 +30,7 @@ class AuthSettingsView:
 
     issuer: str
     audience: str
+    allowed_token_audiences: list[str]
     access_token_ttl_seconds: int
     refresh_token_ttl_seconds: int
     verification_token_ttl_hours: float
