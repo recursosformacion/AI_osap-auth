@@ -2,16 +2,22 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
 import yaml
 
 try:
-    from osap.bootstrap.configuration import ConfigurationError, ConfigurationWarning, validate_generic_service_config
+    from osap.bootstrap.configuration import (
+        ConfigurationError,
+        ConfigurationWarning,
+        validate_generic_service_config,
+    )
 except ImportError:
-    pytest.skip("osap-api no instalado; instalar con pip install -e ../osap-api", allow_module_level=True)
+    pytest.skip(
+        "osap-api no instalado; instalar con pip install -e ../osap-api",
+        allow_module_level=True,
+    )
 
 
 _MINIMAL_AUTH_YAML = """
@@ -40,13 +46,18 @@ def _write_yaml(tmp_path: Path, data: dict[str, object]) -> Path:
     return p
 
 
-def test_production_ok_when_minimal_valid(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_production_ok_when_minimal_valid(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("OSAP_ENV", "production")
     config_path = _write_yaml(tmp_path, yaml.safe_load(_MINIMAL_AUTH_YAML))
-    validate_generic_service_config("osap-auth", yaml.safe_load(config_path.read_text(encoding="utf-8")), config_path)
+    config_data = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    validate_generic_service_config("osap-auth", config_data, config_path)
 
 
-def test_production_raises_when_database_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_production_raises_when_database_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("OSAP_ENV", "production")
     data = yaml.safe_load(_MINIMAL_AUTH_YAML)
     data["database"]["host"] = ""
@@ -55,7 +66,9 @@ def test_production_raises_when_database_missing(tmp_path: Path, monkeypatch: py
         validate_generic_service_config("osap-auth", data, config_path)
 
 
-def test_production_raises_when_crypto_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_production_raises_when_crypto_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("OSAP_ENV", "production")
     data = yaml.safe_load(_MINIMAL_AUTH_YAML)
     del data["crypto"]
@@ -64,7 +77,9 @@ def test_production_raises_when_crypto_missing(tmp_path: Path, monkeypatch: pyte
         validate_generic_service_config("osap-auth", data, config_path)
 
 
-def test_production_raises_when_issuer_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_production_raises_when_issuer_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("OSAP_ENV", "production")
     data = yaml.safe_load(_MINIMAL_AUTH_YAML)
     del data["issuer"]

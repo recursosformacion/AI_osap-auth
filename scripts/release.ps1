@@ -65,7 +65,10 @@ tar.exe -czf - `
 if ($LASTEXITCODE -ne 0) { throw "Fallo al subir el backend" }
 
 Write-Host "[4/8] Preparando venv en el servidor (si no existe)..."
-Invoke-Remote "cd $RemoteDir && (test -x .venv/bin/python || python3 -m venv .venv) && ./.venv/bin/pip install -e '.[dev]' -q"
+# En el servidor solo se instalan las dependencias runtime (`-e .`). El extra `dev`
+# referencia osap-api por ruta local (F:/...) que no existe en el servidor; los tests
+# y lint se ejecutan en local antes del release.
+Invoke-Remote "cd $RemoteDir && (test -x .venv/bin/python || python3 -m venv .venv) && ./.venv/bin/pip install -e . -q"
 
 Write-Host "[5/8] Desplegando config.production.yaml como config.yaml..."
 scp -o BatchMode=yes $prodConfig "${User}@${Server}:/tmp/config.production.yaml"

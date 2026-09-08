@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from pathlib import Path
+from typing import Any
 
 import aiomysql
 import yaml
@@ -15,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.errors import register_exception_handlers
 from api.routes import auth, jwks, oauth, oidc, password_reset, social, system
 from application.context import AuthContext
-from infrastructure.config import Settings, load_settings, PROJECT_ROOT
+from infrastructure.config import PROJECT_ROOT, Settings, load_settings
 from infrastructure.container import build_context
 from infrastructure.db.connection import create_pool
 

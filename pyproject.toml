@@ -30,6 +30,9 @@ dev = [
     "ruff>=0.4",
     "mypy>=1.10",
 ]
+# Nota: osap-api (para tests de validación de configuración compartida) se instala
+# aparte cuando se necesita (p. ej. `pip install -e ../osap-api`). No se referencia
+# aquí por ruta local para no romper el despliegue en servidor.
 
 [project.scripts]
 osap-auth-api = "api.main:run"
