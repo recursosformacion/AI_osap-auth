@@ -207,6 +207,7 @@ def make_settings_view() -> AuthSettingsView:
     return AuthSettingsView(
         issuer="https://auth.osap",
         audience="osap-api",
+        allowed_token_audiences=["osap-api"],
         access_token_ttl_seconds=900,
         refresh_token_ttl_seconds=2_592_000,
         verification_token_ttl_hours=24,
