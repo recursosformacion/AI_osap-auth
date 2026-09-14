@@ -44,6 +44,12 @@ class ChangePasswordRequest(BaseModel):
     new_password: str = Field(min_length=8)
 
 
+class UpdateMeRequest(BaseModel):
+    """Nombre local del usuario (el de OIDC/Google es solo el valor inicial)."""
+
+    name: str = Field(min_length=1, max_length=100)
+
+
 class ChangeEmailRequest(BaseModel):
     email: str
 

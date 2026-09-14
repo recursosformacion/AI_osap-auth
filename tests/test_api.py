@@ -79,6 +79,21 @@ def test_me_with_token(app: TestClient) -> None:
     assert r.json()["email"] == "user@example.com"
 
 
+def test_update_me_name(app: TestClient) -> None:
+    _register(app)
+    r = app.post("/auth/login", json={"email": "user@example.com", "password": "s3cret-password"})
+    token = r.json()["access_token"]
+    r = app.patch(
+        "/auth/me", json={"name": "Mi Nombre Local"}, headers={"Authorization": f"Bearer {token}"}
+    )
+    assert r.status_code == 200
+    assert r.json()["name"] == "Mi Nombre Local"
+    # No puede tocar roles/estado por esta vía.
+    assert "admin" not in r.json()["roles"]
+    r = app.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert r.json()["name"] == "Mi Nombre Local"
+
+
 def test_refresh_flow(app: TestClient) -> None:
     _register(app)
     r = app.post("/auth/login", json={"email": "user@example.com", "password": "s3cret-password"})

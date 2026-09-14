@@ -27,6 +27,7 @@ from api.schemas import (
     RegisterResponse,
     ResendVerificationRequest,
     SessionInfo,
+    UpdateMeRequest,
     UserMeResponse,
     VerifyEmailRequest,
 )
@@ -216,6 +217,27 @@ async def me(
     user: dict = Depends(current_user),
 ) -> UserMeResponse:
     return UserMeResponse(**await GetMeUseCase(ctx).execute(user_id=uuid.UUID(user["sub"])))
+
+
+@router.patch("/me", response_model=UserMeResponse)
+async def update_me(
+    body: UpdateMeRequest,
+    ctx: AuthContext = Depends(get_ctx),
+    user: dict = Depends(current_user),
+    ip: str | None = Depends(client_ip),
+    ua: str | None = Depends(client_user_agent),
+) -> UserMeResponse:
+    """Actualiza el NOMBRE del propio usuario (no permite tocar roles ni estado)."""
+    result = await AdminUpdateUserUseCase(ctx).execute(
+        user_id=uuid.UUID(user["sub"]),
+        name=body.name,
+        roles=None,
+        status=None,
+        actor=user["sub"],
+        ip=ip,
+        user_agent=ua,
+    )
+    return UserMeResponse(**result)
 
 
 @router.post("/me/password", status_code=200)
