@@ -10,7 +10,7 @@ from application.context import AuthContext
 from domain.entities.oauth_client import OAuthClient
 from domain.util import pkce_challenge
 
-CLIENT_ID = "osap-api"
+CLIENT_ID = "81c78ac9-2dfc-4ecd-8f59-b2a45eea7e41"  # UUID como el cliente web real
 CLIENT_SECRET = "rp-secret-value"
 REDIRECT_URI = "https://api.example.com/auth/oidc/callback"
 
@@ -162,11 +162,13 @@ async def test_full_flow(ctx: AuthContext, app: TestClient) -> None:
     assert body["refresh_token"]
 
     claims = ctx.token_provider.verify_access_token(
-        body["access_token"], expected_audience=str(CLIENT_ID)
+        body["access_token"], expected_audience=ctx.settings.audience
     )
     assert claims["sub"] == user["user_id"]
     assert claims["token_use"] == "user"
-    assert claims["aud"] == str(CLIENT_ID)
+    # La audiencia debe ser la global (osap-api), no el client_id: si no, los servicios
+    # internos rechazan el token (403 "Admin role required" entrando por Google).
+    assert claims["aud"] == ctx.settings.audience
     assert claims["nonce"] == "n1"
 
 
@@ -223,9 +225,9 @@ async def test_refresh_token_flow(ctx: AuthContext, app: TestClient) -> None:
     assert body["access_token"]
     assert body["refresh_token"] != tok["refresh_token"]
     claims = ctx.token_provider.verify_access_token(
-        body["access_token"], expected_audience=str(CLIENT_ID)
+        body["access_token"], expected_audience=ctx.settings.audience
     )
-    assert claims["aud"] == str(CLIENT_ID)
+    assert claims["aud"] == ctx.settings.audience
 
 
 async def test_refresh_reuse_detected(ctx: AuthContext, app: TestClient) -> None:

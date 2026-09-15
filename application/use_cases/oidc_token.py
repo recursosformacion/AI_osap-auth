@@ -94,9 +94,7 @@ class ExchangeAuthorizationCodeUseCase:
         )
         await self._ctx.sessions.save(session)
 
-        access = await self._issue_access(
-            client, record.user_id, session, record.scope, record.nonce
-        )
+        access = await self._issue_access(record.user_id, session, record.scope, record.nonce)
         await audit(
             self._ctx,
             event_type="oauth.token",
@@ -117,7 +115,6 @@ class ExchangeAuthorizationCodeUseCase:
 
     async def _issue_access(
         self,
-        client: OAuthClient,
         user_id: uuid.UUID,
         session: Session,
         scope: str,
@@ -133,7 +130,10 @@ class ExchangeAuthorizationCodeUseCase:
             email_verified=user.email_verified,
             scope=scope,
             ttl_seconds=self._ctx.settings.access_token_ttl_seconds,
-            audience=str(client.client_id),
+            # Misma audiencia que el login normal (osap-api): los servicios internos
+            # (osap-api/osap-auth admin) la exigen. Antes se ponía el client_id, y un
+            # usuario que entraba por Google recibía 403 "Admin role required".
+            audience=None,
             nonce=nonce,
             issuer=self._ctx.settings.effective_issuer,
         )
@@ -196,7 +196,8 @@ class RefreshTokenGrantUseCase:
             email_verified=user.email_verified,
             scope="openid profile",
             ttl_seconds=self._ctx.settings.access_token_ttl_seconds,
-            audience=str(client.client_id),
+            # Igual que el login normal: audiencia global (osap-api), no el client_id.
+            audience=None,
             issuer=self._ctx.settings.effective_issuer,
         )
         await audit(
