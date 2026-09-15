@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import uuid
+
 from fastapi.testclient import TestClient
+
+from application.context import AuthContext
 
 
 def _register(
@@ -92,6 +96,28 @@ def test_update_me_name(app: TestClient) -> None:
     assert "admin" not in r.json()["roles"]
     r = app.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert r.json()["name"] == "Mi Nombre Local"
+
+
+async def test_require_role_usa_la_bd_no_la_foto_del_token(
+    app: TestClient, ctx: AuthContext
+) -> None:
+    """Un token emitido ANTES de ser admin debe servir tras la promoción (rol de BD)."""
+    _register(app)
+    token = app.post(
+        "/auth/login", json={"email": "user@example.com", "password": "s3cret-password"}
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    assert app.get("/auth/admin/users", headers=headers).status_code == 403
+
+    me = app.get("/auth/me", headers=headers).json()
+    record = await ctx.users.get_by_id(uuid.UUID(me["user_id"]))
+    assert record is not None
+    record.roles = [*record.roles, "admin"]
+    await ctx.users.save(record)
+
+    # Mismo token (roles obsoletos): ahora debe autorizar porque en la BD es admin.
+    assert app.get("/auth/admin/users", headers=headers).status_code == 200
 
 
 def test_refresh_flow(app: TestClient) -> None:

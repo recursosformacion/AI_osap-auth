@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import uuid
 from typing import Any
 
 import jwt
 from fastapi import Depends, Request
 
 from application.context import AuthContext
-from domain.exceptions import UnauthorizedError
+from domain.entities.user import UserStatus
+from domain.exceptions import ForbiddenError, UnauthorizedError
 
 
 def get_ctx(request: Request) -> AuthContext:
@@ -42,13 +44,28 @@ def current_user(request: Request, ctx: AuthContext = Depends(get_ctx)) -> dict[
 
 
 def require_role(role: str) -> Any:
-    """Dependency factory: exige un rol en el access token."""
+    """Dependency factory: exige un rol, con la BD de usuarios como autoridad.
 
-    def _dep(user: dict[str, Any] = Depends(current_user)) -> dict[str, Any]:
-        roles = user.get("roles", [])
-        if role not in roles:
-            from domain.exceptions import ForbiddenError
+    El claim `roles` del token es una **foto del momento de emisión**. Si la cuenta se
+    promovió (o degradó) después, el token sigue siendo válido pero con roles obsoletos: el
+    usuario veía "sin autorización" en los endpoints admin pese a ser admin en la BD. El
+    camino rápido es el token; si no trae el rol, se comprueba el estado actual del usuario.
+    """
 
+    async def _dep(
+        user: dict[str, Any] = Depends(current_user),
+        ctx: AuthContext = Depends(get_ctx),
+    ) -> dict[str, Any]:
+        if role in (user.get("roles") or []):
+            return user
+        try:
+            user_id = uuid.UUID(str(user.get("sub") or ""))
+        except ValueError:
+            raise ForbiddenError("sin autorización") from None
+        record = await ctx.users.get_by_id(user_id)
+        if record is None or record.status in (UserStatus.DISABLED, UserStatus.DELETED):
+            raise ForbiddenError("sin autorización")
+        if role not in (record.roles or []):
             raise ForbiddenError("sin autorización")
         return user
 
