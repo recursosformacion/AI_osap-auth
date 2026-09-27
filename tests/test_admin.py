@@ -83,6 +83,9 @@ async def test_admin_delete_soft_deletes_and_revokes() -> None:
     )
     assert user.status == UserStatus.DELETED
     assert user.password_hash == ""
+    # Anonimización: se libera el email (nuevo lookup) y se borra el email cifrado.
+    assert user.email_lookup == f"deleted-{user.id}"
+    assert user.email_cipher == b""
     for s in await ctx.sessions.list_for_user(user.id):
         assert s.revoked_at is not None
     # El evento user.deleted se publica (osap-api anonimiza votos).

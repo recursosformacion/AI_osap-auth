@@ -75,6 +75,7 @@ class SqlUserRepository(UserRepository):
                    roles, status, key_version, name, created_at, updated_at)
                 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 ON DUPLICATE KEY UPDATE
+                  email_lookup=VALUES(email_lookup),
                   email_cipher=VALUES(email_cipher),
                   email_verified_at=VALUES(email_verified_at),
                   password_hash=VALUES(password_hash),
