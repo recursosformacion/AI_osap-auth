@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 from application.audit import audit
 from application.context import AuthContext
+from application.identity_emails import verification_email
 from domain.entities.token_record import TokenPurpose, TokenRecord
 from domain.entities.user import User
 from domain.exceptions import RateLimitedError
 from domain.services.email_utils import normalize_email, validate_password
+
+logger = logging.getLogger("osap_auth.register")
 
 
 @dataclass
@@ -79,6 +83,7 @@ class RegisterUseCase:
             ttl_hours=self._ctx.settings.verification_token_ttl_hours,
         )
         await self._ctx.tokens.save(token)
+        self._send_verification(normalized, raw_token)
 
         await audit(
             self._ctx,
@@ -91,3 +96,17 @@ class RegisterUseCase:
             context={"verified": False},
         )
         return RegisterResult(created=True, user_id=str(user.id), verification_token=raw_token)
+
+    def _send_verification(self, email: str, token: str) -> None:
+        """Envía el correo de verificación; un fallo de correo no rompe el registro."""
+        try:
+            self._ctx.email_sender.send(
+                verification_email(
+                    web_base_url=self._ctx.settings.web_base_url,
+                    to=email,
+                    token=token,
+                    ttl_hours=self._ctx.settings.verification_token_ttl_hours,
+                )
+            )
+        except Exception as exc:  # noqa: BLE001 — el correo no debe impedir el registro
+            logger.warning("no se pudo enviar el email de verificación: %s", exc)

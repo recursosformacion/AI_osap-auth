@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import logging
+
 from application.audit import audit
 from application.context import AuthContext
+from application.identity_emails import password_reset_email
 from domain.entities.token_record import TokenPurpose, TokenRecord
 from domain.exceptions import InvalidTokenError, RateLimitedError
 from domain.services.email_utils import validate_password
+
+logger = logging.getLogger("osap_auth.password_reset")
 
 
 class RequestPasswordResetUseCase:
@@ -48,6 +53,7 @@ class RequestPasswordResetUseCase:
             ttl_hours=self._ctx.settings.password_reset_token_ttl_hours,
         )
         await self._ctx.tokens.save(token)
+        self._send_reset(email, raw_token)
         await audit(
             self._ctx,
             event_type="password.reset.requested",
@@ -58,6 +64,19 @@ class RequestPasswordResetUseCase:
             outcome="success",
             context={},
         )
+
+    def _send_reset(self, email: str, token: str) -> None:
+        try:
+            self._ctx.email_sender.send(
+                password_reset_email(
+                    web_base_url=self._ctx.settings.web_base_url,
+                    to=email,
+                    token=token,
+                    ttl_hours=self._ctx.settings.password_reset_token_ttl_hours,
+                )
+            )
+        except Exception as exc:  # noqa: BLE001 — el reset no debe romperse por el correo
+            logger.warning("no se pudo enviar el email de recuperación: %s", exc)
 
 
 class ConfirmPasswordResetUseCase:

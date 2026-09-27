@@ -12,6 +12,7 @@ from domain.ports.crypto import (
     SecretGenerator,
     TokenHasher,
 )
+from domain.ports.email import EmailSender
 from domain.ports.event_bus import EventPublisher
 from domain.ports.jwt import TokenProvider
 from domain.ports.oauth_client_repository import OAuthClientRepository
@@ -74,6 +75,7 @@ class AuthContext:
     email_protector: EmailProtector
     token_provider: TokenProvider
     events: EventPublisher
+    email_sender: EmailSender
     settings: AuthSettingsView
     social_providers: dict[str, SocialProvider] = field(default_factory=dict)
 

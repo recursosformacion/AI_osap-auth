@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import logging
+
 from application.audit import audit
 from application.context import AuthContext
+from application.identity_emails import verification_email
 from domain.entities.token_record import TokenPurpose, TokenRecord
 from domain.entities.user import UserStatus
 from domain.exceptions import (
@@ -11,6 +14,8 @@ from domain.exceptions import (
     InvalidTokenError,
     RateLimitedError,
 )
+
+logger = logging.getLogger("osap_auth.verify_email")
 
 
 class VerifyEmailUseCase:
@@ -99,6 +104,7 @@ class ResendVerificationUseCase:
             ttl_hours=self._ctx.settings.verification_token_ttl_hours,
         )
         await self._ctx.tokens.save(token)
+        self._send_verification(email, raw_token)
         await audit(
             self._ctx,
             event_type="email.verify.failed",
@@ -109,3 +115,16 @@ class ResendVerificationUseCase:
             outcome="resent",
             context={},
         )
+
+    def _send_verification(self, email: str, token: str) -> None:
+        try:
+            self._ctx.email_sender.send(
+                verification_email(
+                    web_base_url=self._ctx.settings.web_base_url,
+                    to=email,
+                    token=token,
+                    ttl_hours=self._ctx.settings.verification_token_ttl_hours,
+                )
+            )
+        except Exception as exc:  # noqa: BLE001 — el reenvío no debe romperse por el correo
+            logger.warning("no se pudo reenviar el email de verificación: %s", exc)

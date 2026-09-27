@@ -30,6 +30,7 @@ from infrastructure.crypto.aes_gcm import AesGcmEmailProtector
 from infrastructure.crypto.argon2_hasher import Argon2PasswordHasher
 from infrastructure.crypto.hmac_hasher import HmacTokenHasher
 from infrastructure.crypto.secrets import SecretGenerator
+from infrastructure.email.fake_email_sender import FakeEmailSender
 from infrastructure.events.event_bus import LoggingEventPublisher
 from infrastructure.jwt.tokens import PyJwtTokenProvider
 from infrastructure.rate_limiting.memory_rate_limiter import MemoryRateLimiter
@@ -268,7 +269,8 @@ def make_context(
         email_protector=protector,
         token_provider=provider,
         events=LoggingEventPublisher(),
+        email_sender=FakeEmailSender(),
         settings=make_settings_view(),
         social_providers=social_providers or {},  # type: ignore[arg-type]
     )
-    return ctx, [provider, protector, ctx.events]
+    return ctx, [provider, protector, ctx.events, ctx.email_sender]

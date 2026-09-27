@@ -5,12 +5,15 @@ from __future__ import annotations
 import aiomysql
 
 from application.context import AuthContext, AuthSettingsView
+from domain.ports.email import EmailSender
 from domain.ports.social import SocialProvider
 from infrastructure.config import Settings
 from infrastructure.crypto.aes_gcm import AesGcmEmailProtector
 from infrastructure.crypto.argon2_hasher import Argon2PasswordHasher
 from infrastructure.crypto.hmac_hasher import HmacTokenHasher
 from infrastructure.crypto.secrets import SecretGenerator
+from infrastructure.email.fake_email_sender import FakeEmailSender
+from infrastructure.email.smtp_email_sender import SmtpEmailSender, SmtpSettings
 from infrastructure.events.event_bus import LoggingEventPublisher
 from infrastructure.jwt.tokens import PyJwtTokenProvider
 from infrastructure.rate_limiting.memory_rate_limiter import MemoryRateLimiter
@@ -58,6 +61,23 @@ def build_settings_view(settings: Settings) -> AuthSettingsView:
     )
 
 
+def build_email_sender(settings: Settings) -> EmailSender:
+    """SMTP si hay host configurado; si no, remitente falso (dev/test: no envía)."""
+    if not settings.smtp_host:
+        return FakeEmailSender()
+    return SmtpEmailSender(
+        SmtpSettings(
+            host=settings.smtp_host,
+            port=settings.smtp_port,
+            username=settings.smtp_username,
+            password=settings.smtp_password,
+            from_address=settings.smtp_from_address,
+            use_ssl=settings.smtp_use_ssl,
+            use_starttls=settings.smtp_use_starttls,
+        )
+    )
+
+
 def build_context(settings: Settings, pool: aiomysql.Pool) -> AuthContext:
     email_protector = AesGcmEmailProtector(
         aead_key_b64=settings.crypto.email_aead_key_b64,
@@ -98,6 +118,7 @@ def build_context(settings: Settings, pool: aiomysql.Pool) -> AuthContext:
         email_protector=email_protector,
         token_provider=token_provider,
         events=LoggingEventPublisher(),
+        email_sender=build_email_sender(settings),
         settings=build_settings_view(settings),
         social_providers=social_providers,
     )

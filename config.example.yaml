@@ -36,6 +36,18 @@ crypto:
 # Cifrado envolvente: KEK en entorno protegido (no se persiste).
 key_version: 1
 
+# SMTP para correos transaccionales (verificación de email / recuperación de contraseña).
+# Vacío (host sin valor) = no se envían correos reales (dev/test usa un remitente falso).
+# Precedencia: env OSAP_AUTH_SMTP_* > este fichero. Secrets fuera del repo.
+smtp:
+  host: ""                                # p. ej. smtp.example.com
+  port: 465                               # 465 = SSL implícito; 587 = STARTTLS
+  username: ${OSAP_AUTH_SMTP_USERNAME}
+  password: ${OSAP_AUTH_SMTP_PASSWORD}
+  from_address: "no-reply@openmusicrepository.com"
+  ssl: true                               # SSL implícito (puerto 465)
+  starttls: false                         # STARTTLS (puerto 587)
+
 rate_limit:
   register_per_minute: 10
   login_per_minute: 20

@@ -16,6 +16,19 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
+_FALSE = {"0", "false", "no", "off", ""}
+
+
+def _as_bool(value: object, default: bool = False) -> bool:
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() not in _FALSE
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.environ.get(name)
+    return default if raw is None else _as_bool(raw, default)
+
 
 class DatabaseConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="OSAP_AUTH_DB_", extra="ignore")
@@ -78,6 +91,19 @@ class Settings:
         self.web_base_url: str = "http://127.0.0.1:5173"
         self.authorization_code_ttl_seconds: int = 300
         self.cors_origins: list[str] = []
+        # SMTP para correos transaccionales (verificación / reset). Vacío = sin envío real
+        # (dev/test usa FakeEmailSender; producción exige host + from).
+        self.smtp_host: str = os.environ.get("OSAP_AUTH_SMTP_HOST", "")
+        self.smtp_port: int = int(os.environ.get("OSAP_AUTH_SMTP_PORT", "465") or "465")
+        self.smtp_username: str = os.environ.get(
+            "OSAP_AUTH_SMTP_USERNAME", os.environ.get("OSAP_AUTH_SMTP_USER", "")
+        )
+        self.smtp_password: str = os.environ.get("OSAP_AUTH_SMTP_PASSWORD", "")
+        self.smtp_from_address: str = os.environ.get(
+            "OSAP_AUTH_SMTP_FROM", "no-reply@openmusicrepository.com"
+        )
+        self.smtp_use_ssl: bool = _env_bool("OSAP_AUTH_SMTP_SSL", True)
+        self.smtp_use_starttls: bool = _env_bool("OSAP_AUTH_SMTP_STARTTLS", False)
         self.social_enabled: dict[str, bool] = {}
         self.social_credentials: dict[str, dict[str, str]] = {}
         self.social_state_secret: str = ""
@@ -144,6 +170,25 @@ class Settings:
                         "client_secret": str(conf.get("client_secret", "")),
                     }
         self.social_state_secret = data.get("social_state_secret", self.social_state_secret)
+
+        smtp = data.get("smtp", {})
+        if isinstance(smtp, dict):
+            if "host" in smtp and not os.environ.get("OSAP_AUTH_SMTP_HOST"):
+                self.smtp_host = str(smtp["host"])
+            if "port" in smtp and not os.environ.get("OSAP_AUTH_SMTP_PORT"):
+                self.smtp_port = int(smtp["port"])
+            if "username" in smtp and not (
+                os.environ.get("OSAP_AUTH_SMTP_USERNAME") or os.environ.get("OSAP_AUTH_SMTP_USER")
+            ):
+                self.smtp_username = str(smtp["username"])
+            if "password" in smtp and not os.environ.get("OSAP_AUTH_SMTP_PASSWORD"):
+                self.smtp_password = str(smtp["password"])
+            if "from_address" in smtp and not os.environ.get("OSAP_AUTH_SMTP_FROM"):
+                self.smtp_from_address = str(smtp["from_address"])
+            if "ssl" in smtp and not os.environ.get("OSAP_AUTH_SMTP_SSL"):
+                self.smtp_use_ssl = _as_bool(smtp["ssl"], self.smtp_use_ssl)
+            if "starttls" in smtp and not os.environ.get("OSAP_AUTH_SMTP_STARTTLS"):
+                self.smtp_use_starttls = _as_bool(smtp["starttls"], self.smtp_use_starttls)
 
         # Guardamos la sección crypto/db para aplicarla con prioridad de YAML (dev).
         self._yaml_data = data

@@ -33,6 +33,10 @@ Copia `config.example.yaml` a `config.yaml` y `env.example` a `.env`, y rellena:
 - `OSAP_AUTH_EMAIL_PEPPER`, `OSAP_AUTH_EMAIL_AEAD_KEY`, `OSAP_AUTH_TOKEN_PEPPER`
 - `OSAP_AUTH_JWT_PRIVATE_KEY`, `OSAP_AUTH_JWT_PUBLIC_KEY` (los PEM con `\n` escapado)
 - `OSAP_AUTH_ISSUER`, `OSAP_AUTH_AUDIENCE`
+- `OSAP_AUTH_SMTP_*` (correos de verificación y recuperación): `HOST`, `PORT`, `USERNAME`,
+  `PASSWORD`, `FROM`, `SSL` (implícito, puerto 465), `STARTTLS` (puerto 587). También puede
+  ir en la sección `smtp:` de `config.yaml`. **Vacío = no se envían correos reales** (en
+  dev/test se usa un remitente falso que registra los mensajes).
 
 > Las claves **nunca** se commitean. Usa el gestor de secretos de tu entorno.
 
