@@ -74,9 +74,9 @@ async def register(
     result = await RegisterUseCase(ctx).execute(
         email=body.email, password=body.password, name=body.name, ip=ip, user_agent=ua
     )
-    # En producción el token se envía por email; en entornos no productivos se devuelve
-    # para poder probar el flujo.
-    include_token = ctx.settings.env != "production"
+    # En producción el token se envía por email; solo en dev/test se devuelve para poder
+    # probar el flujo (allowlist explícita: cualquier otro entorno no lo expone).
+    include_token = ctx.settings.env in ("development", "test")
     return RegisterResponse(
         user_id=result.user_id,
         verification_token=result.verification_token if include_token else None,

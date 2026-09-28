@@ -309,8 +309,14 @@ class Settings:
 
 @lru_cache
 def load_settings() -> Settings:
-    settings = Settings(env=os.environ.get("OSAP_AUTH_ENV", "development"))
-    yaml_path = settings.config_yaml()
+    probe = Settings()
+    yaml_path = probe.config_yaml()
+    data: dict[str, Any] = {}
     if yaml_path is not None:
-        settings = Settings(config_file=yaml_path)
+        data = yaml.safe_load(yaml_path.read_text(encoding="utf-8")) or {}
+    settings = Settings(config_file=yaml_path)
+    # El entorno efectivo es el mismo que gobierna el resto de la configuración:
+    # OSAP_AUTH_ENV > app.env > production (fail-closed). Nunca queda en "development"
+    # por defecto, de modo que un despliegue sin marca explícita no cae en modo dev.
+    settings.env = resolve_config_env(data)
     return settings
