@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from abc import ABC, abstractmethod
+from datetime import datetime
 
 from domain.entities.session import Session
 
@@ -27,6 +28,22 @@ class SessionRepository(ABC):
 
     @abstractmethod
     async def save(self, session: Session) -> None: ...
+
+    @abstractmethod
+    async def consume_and_rotate(
+        self,
+        session_id: uuid.UUID,
+        expected_refresh_hash: str,
+        new_refresh_hash: str,
+        new_expires_at: datetime,
+    ) -> bool:
+        """Rota el refresh de forma atómica (compare-and-swap).
+
+        Devuelve `True` solo si esta llamada consumió el token: la fila sigue teniendo
+        `expected_refresh_hash`, no está revocada y no ha expirado. Bajo doble consumo
+        concurrente, exactamente una llamada obtiene `True`.
+        """
+        ...
 
     @abstractmethod
     async def revoke(self, session_id: uuid.UUID) -> None: ...

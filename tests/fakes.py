@@ -104,6 +104,22 @@ class FakeSessionRepository(SessionRepository):
     async def save(self, session: Session) -> None:
         self._sessions[str(session.id)] = session
 
+    async def consume_and_rotate(
+        self,
+        session_id: uuid.UUID,
+        expected_refresh_hash: str,
+        new_refresh_hash: str,
+        new_expires_at: datetime,
+    ) -> bool:
+        s = self._sessions.get(str(session_id))
+        if s is None or s.refresh_token_hash != expected_refresh_hash:
+            return False
+        s.previous_refresh_token_hash = s.refresh_token_hash
+        s.refresh_token_hash = new_refresh_hash
+        s.refresh_expires_at = new_expires_at
+        s.touch()
+        return True
+
     async def revoke(self, session_id: uuid.UUID) -> None:
         s = self._sessions.get(str(session_id))
         if s is not None:

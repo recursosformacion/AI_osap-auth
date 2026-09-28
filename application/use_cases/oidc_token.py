@@ -182,13 +182,16 @@ class RefreshTokenGrantUseCase:
             raise InvalidTokenError("refresh token inválido")
 
         new_refresh = self._ctx.secret_generator.generate(48)
-        session.previous_refresh_token_hash = session.refresh_token_hash
-        session.refresh_token_hash = self._ctx.token_hasher.hash(new_refresh)
-        session.touch()
-        session.refresh_expires_at = datetime.now(UTC) + timedelta(
-            seconds=self._ctx.settings.refresh_token_ttl_seconds
+        rotated = await self._ctx.sessions.consume_and_rotate(
+            session.id,
+            provided_hash,
+            self._ctx.token_hasher.hash(new_refresh),
+            datetime.now(UTC)
+            + timedelta(seconds=self._ctx.settings.refresh_token_ttl_seconds),
         )
-        await self._ctx.sessions.save(session)
+        if not rotated:
+            await self._ctx.sessions.revoke_all_for_user(session.user_id)
+            raise TokenReuseDetectedError("refresh reutilizado; sesiones revocadas")
 
         access = self._ctx.token_provider.issue_access_token(
             user_id=user.id,

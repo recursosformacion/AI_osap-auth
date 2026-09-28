@@ -83,15 +83,29 @@ class RefreshUseCase:
         if user is None or user.status in (UserStatus.DISABLED, UserStatus.DELETED):
             raise InvalidTokenError("refresh token inválido")
 
-        # Rotación: el hash actual pasa a ser el "anterior" (detección de reuso).
+        # Rotación atómica (compare-and-swap): solo una solicitud concurrente puede
+        # consumir el refresh. Si perdemos la carrera, se trata como reuso.
         new_refresh = self._ctx.secret_generator.generate(48)
-        session.previous_refresh_token_hash = session.refresh_token_hash
-        session.refresh_token_hash = self._ctx.token_hasher.hash(new_refresh)
-        session.touch()
-        session.refresh_expires_at = datetime.now(UTC) + timedelta(
-            seconds=self._ctx.settings.refresh_token_ttl_seconds
+        rotated = await self._ctx.sessions.consume_and_rotate(
+            session.id,
+            provided_hash,
+            self._ctx.token_hasher.hash(new_refresh),
+            datetime.now(UTC)
+            + timedelta(seconds=self._ctx.settings.refresh_token_ttl_seconds),
         )
-        await self._ctx.sessions.save(session)
+        if not rotated:
+            await self._ctx.sessions.revoke_all_for_user(session.user_id)
+            await audit(
+                self._ctx,
+                event_type="refresh",
+                actor=str(session.user_id),
+                subject=str(session.user_id),
+                ip=ip,
+                user_agent=user_agent,
+                outcome="reuse_detected",
+                context={"session": str(session.id)},
+            )
+            raise TokenReuseDetectedError("refresh reutilizado; sesiones revocadas")
 
         access = self._ctx.token_provider.issue_access_token(
             user_id=user.id,

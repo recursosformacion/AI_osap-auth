@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from typing import Any
 
 import aiomysql
@@ -104,6 +105,33 @@ class SqlSessionRepository(SessionRepository):
                 "UPDATE sessions SET revoked_at=NOW(6) WHERE id=%s AND revoked_at IS NULL",
                 (str(session_id),),
             )
+
+    async def consume_and_rotate(
+        self,
+        session_id: uuid.UUID,
+        expected_refresh_hash: str,
+        new_refresh_hash: str,
+        new_expires_at: datetime,
+    ) -> bool:
+        # Compare-and-swap en una sola sentencia: bajo doble consumo concurrente, MySQL
+        # serializa el UPDATE de la misma fila y solo la primera llamada ve el hash
+        # esperado (rowcount=1); la segunda re-evalúa el WHERE y no coincide.
+        async with cursor(self._pool) as cur:
+            await cur.execute(
+                """
+                UPDATE sessions
+                   SET previous_refresh_token_hash = refresh_token_hash,
+                       refresh_token_hash = %s,
+                       refresh_expires_at = %s,
+                       last_used_at = NOW(6)
+                 WHERE id = %s
+                   AND refresh_token_hash = %s
+                   AND revoked_at IS NULL
+                   AND refresh_expires_at > NOW(6)
+                """,
+                (new_refresh_hash, new_expires_at, str(session_id), expected_refresh_hash),
+            )
+            return cur.rowcount == 1
 
     async def revoke_all_for_user(self, user_id: uuid.UUID) -> None:
         async with cursor(self._pool) as cur:
