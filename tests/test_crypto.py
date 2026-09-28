@@ -23,6 +23,19 @@ def test_token_hash() -> None:
     assert not hasher.verify("other", h)
 
 
+def test_password_verify_hash_invalido_devuelve_false() -> None:
+    hasher = Argon2PasswordHasher()
+    # Hash vacío (cuentas sociales) o corrupto: no debe lanzar (antes 500).
+    assert hasher.verify("x", "") is False
+    assert hasher.verify("x", "no-es-un-hash") is False
+
+
+def test_token_verify_hash_invalido_devuelve_false() -> None:
+    hasher = Argon2TokenHasher()
+    assert hasher.verify("x", "") is False
+    assert hasher.verify("x", "no-es-un-hash") is False
+
+
 def test_email_lookup_deterministic_and_normalized() -> None:
     protector = AesGcmEmailProtector(
         aead_key_b64="QUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUE=", pepper="pepper"

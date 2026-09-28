@@ -49,6 +49,21 @@ async def test_login_unknown_email_generic() -> None:
         )
 
 
+async def test_login_cuenta_social_sin_password_es_credencial_generica() -> None:
+    # Cuenta social (password_hash vacío): el login por contraseña no debe dar 500
+    # (InvalidHashError), sino credenciales inválidas.
+    ctx, _ = make_context()
+    await _registered_email(ctx)
+    user = next(iter(ctx.users._users.values()))  # noqa: SLF001
+    user.password_hash = ""
+    await ctx.users.save(user)
+
+    with pytest.raises(InvalidCredentialsError):
+        await LoginUseCase(ctx).execute(
+            email="user@example.com", password="whatever-password", ip=None, user_agent=None
+        )
+
+
 async def test_verify_email_activates() -> None:
     ctx, _ = make_context()
     token = await _registered_email(ctx)

@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError
+from argon2.exceptions import Argon2Error, InvalidHashError
 
 from domain.ports.crypto import PasswordHasher as PasswordHasherPort
 from domain.ports.crypto import TokenHasher
+
+# Errores al verificar un hash: `Argon2Error` cubre VerifyMismatchError y demás fallos de
+# verificación; `InvalidHashError` (hash vacío/corrupto) hereda de ValueError, NO de
+# VerificationError, así que se captura aparte.
+_VERIFY_ERRORS = (Argon2Error, InvalidHashError)
 
 # Parámetros orientados a seguridad: suficiente coste sin latencia excesiva.
 _TIME_COST = 3
@@ -28,13 +33,13 @@ class Argon2PasswordHasher(PasswordHasherPort):
     def verify(self, password: str, hashed: str) -> bool:
         try:
             return self._hasher.verify(hashed, password)
-        except VerifyMismatchError:
+        except _VERIFY_ERRORS:
             return False
 
     def dummy_verify(self) -> None:
         try:
             self._hasher.verify(self.hash("dummy-constant-password"), "does-not-match")
-        except VerifyMismatchError:
+        except _VERIFY_ERRORS:
             pass
 
 
@@ -55,5 +60,5 @@ class Argon2TokenHasher(TokenHasher):
     def verify(self, token: str, hashed: str) -> bool:
         try:
             return self._hasher.verify(hashed, token)
-        except VerifyMismatchError:
+        except _VERIFY_ERRORS:
             return False
