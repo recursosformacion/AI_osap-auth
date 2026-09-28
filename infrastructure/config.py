@@ -301,6 +301,7 @@ class Settings:
             ("token_hmac_pepper", "OSAP_AUTH_TOKEN_PEPPER"),
             ("jwt_private_key", "OSAP_AUTH_JWT_PRIVATE_KEY"),
             ("jwt_public_key", "OSAP_AUTH_JWT_PUBLIC_KEY"),
+            ("jwt_kid", "OSAP_AUTH_JWT_KID"),
         ):
             if field in crypto and not os.environ.get(env):
                 setattr(self.crypto, field, crypto[field])

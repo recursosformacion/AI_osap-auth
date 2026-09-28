@@ -13,6 +13,7 @@ import pytest
 import yaml
 
 from infrastructure.config import (
+    Settings,
     missing_required_keys,
     resolve_config_env,
     validate_startup_config,
@@ -97,3 +98,32 @@ def test_helpers_de_introspeccion() -> None:
     assert resolve_config_env({"app": {"env": "test"}}) == "test"
     assert resolve_config_env({}) == "production"
     assert missing_required_keys(_VALID) == []
+
+
+def test_jwt_kid_y_previous_se_leen_del_yaml(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("OSAP_AUTH_JWT_KID", raising=False)
+    monkeypatch.delenv("OSAP_AUTH_JWT_PREVIOUS_PUBLIC_KEYS", raising=False)
+
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        yaml.safe_dump(
+            {
+                "app": {"env": "development"},
+                "crypto": {
+                    "jwt_kid": "osap-auth-v2",
+                    "jwt_previous_public_keys": [
+                        {"kid": "osap-auth-v1", "public_key": "PEM-V1"}
+                    ],
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    settings = Settings(config_file=config_file)
+    assert settings.crypto.jwt_kid == "osap-auth-v2"
+    assert settings.crypto.jwt_previous_public_keys == [
+        {"kid": "osap-auth-v1", "public_key": "PEM-V1"}
+    ]
