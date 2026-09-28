@@ -120,6 +120,9 @@ class CryptoConfig(BaseSettings):
     jwt_private_key: str = ""
     jwt_public_key: str = ""
     jwt_kid: str = "osap-auth-v1"
+    # Claves públicas adicionales para verificación durante rotaciones (JWKS multi-clave):
+    # lista de {"kid": ..., "public_key": ...}. La clave activa sigue siendo jwt_public_key.
+    jwt_previous_public_keys: list[dict[str, str]] = []
 
 
 class RateLimitConfig:
@@ -301,6 +304,17 @@ class Settings:
         ):
             if field in crypto and not os.environ.get(env):
                 setattr(self.crypto, field, crypto[field])
+
+        previous = crypto.get("jwt_previous_public_keys") if isinstance(crypto, dict) else None
+        if (
+            isinstance(previous, list)
+            and not os.environ.get("OSAP_AUTH_JWT_PREVIOUS_PUBLIC_KEYS")
+        ):
+            self.crypto.jwt_previous_public_keys = [
+                {str(k): str(v) for k, v in item.items()}
+                for item in previous
+                if isinstance(item, dict)
+            ]
 
     def config_yaml(self) -> Path | None:
         path = PROJECT_ROOT / "config.yaml"

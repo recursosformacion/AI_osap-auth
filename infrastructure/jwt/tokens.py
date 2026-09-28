@@ -28,7 +28,10 @@ class PyJwtTokenProvider(TokenProvider):
         issuer: str,
         audience: str,
         clock_skew_seconds: int = 30,
+        previous_public_keys: dict[str, str] | None = None,
     ) -> None:
+        from cryptography.hazmat.primitives import serialization
+
         from infrastructure.jwt.keys import RsaKeys
 
         self._keys = RsaKeys(private_key_pem=private_key_pem, public_key_pem=public_key_pem)
@@ -36,6 +39,14 @@ class PyJwtTokenProvider(TokenProvider):
         self._issuer = issuer
         self._audience = audience
         self._clock_skew = clock_skew_seconds
+        # Anillo de claves de verificación: la activa (kid que firma) primero y, durante una
+        # rotación, las claves anteriores/publicadas. El `kid` de firma no cambia aquí.
+        self._verification_keys: dict[str, Any] = {kid: self._keys.public_key}
+        for prev_kid, pem in (previous_public_keys or {}).items():
+            if prev_kid and pem:
+                self._verification_keys[prev_kid] = serialization.load_pem_public_key(
+                    pem.encode("utf-8")
+                )
 
     def issue_access_token(
         self,
@@ -106,7 +117,13 @@ class PyJwtTokenProvider(TokenProvider):
         return payload
 
     def jwks(self) -> dict[str, Any]:
-        return {"keys": [jwk_from_public_key(self._keys.public_key, self._kid)]}
+        # Publica todas las claves de verificación (activa + anteriores) con su kid.
+        return {
+            "keys": [
+                jwk_from_public_key(public_key, key_id)
+                for key_id, public_key in self._verification_keys.items()
+            ]
+        }
 
     def _encode(self, payload: dict[str, Any]) -> str:
         return jwt.encode(
@@ -114,9 +131,15 @@ class PyJwtTokenProvider(TokenProvider):
         )
 
     def _decode(self, token: str, expected_audience: str) -> dict[str, Any]:
+        header = jwt.get_unverified_header(token)
+        kid = header.get("kid")
+        key = self._verification_keys.get(kid) if isinstance(kid, str) else None
+        if key is None:
+            # `kid` ausente o desconocido: no se verifica con otra clave "por si acaso".
+            raise jwt.InvalidTokenError("kid desconocido o ausente")
         return jwt.decode(
             token,
-            self._keys.public_key,
+            key,
             algorithms=["RS256"],
             issuer=self._issuer,
             audience=expected_audience,

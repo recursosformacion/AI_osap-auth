@@ -94,6 +94,11 @@ def build_context(settings: Settings, pool: aiomysql.Pool) -> AuthContext:
         kid=settings.crypto.jwt_kid,
         issuer=settings.issuer,
         audience=settings.audience,
+        previous_public_keys={
+            str(item.get("kid")): str(item.get("public_key"))
+            for item in settings.crypto.jwt_previous_public_keys
+            if isinstance(item, dict) and item.get("kid") and item.get("public_key")
+        },
     )
     social_providers: dict[str, SocialProvider] = {}
     for name, creds in settings.social_credentials.items():
