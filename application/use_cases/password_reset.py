@@ -105,10 +105,13 @@ class ConfirmPasswordResetUseCase:
         if user is None:
             raise InvalidTokenError("token de recuperación inválido")
 
+        # Consumo atómico: bajo doble confirmación concurrente, solo una gana.
+        if not await self._ctx.tokens.consume(record.id):
+            raise InvalidTokenError("token de recuperación ya utilizado")
+
         user.password_hash = self._ctx.password_hasher.hash(new_password)
         user.touch()
         await self._ctx.users.save(user)
-        await self._ctx.tokens.mark_used(record.id)
         # Revocar todas las sesiones tras un reset de contraseña.
         await self._ctx.sessions.revoke_all_for_user(user.id)
         await audit(

@@ -144,10 +144,14 @@ class FakeTokenRepository(TokenRepository):
     async def save(self, token: TokenRecord) -> None:
         self._tokens.append(token)
 
-    async def mark_used(self, token_id: uuid.UUID) -> None:
+    async def consume(self, token_id: uuid.UUID) -> bool:
         for t in self._tokens:
             if t.id == token_id:
+                if t.is_used:
+                    return False
                 t.mark_used()
+                return True
+        return False
 
 
 class FakeServiceClientRepository(ServiceClientRepository):
@@ -182,10 +186,14 @@ class FakeAuthorizationCodeRepository(AuthorizationCodeRepository):
     async def save(self, code: AuthorizationCode) -> None:
         self._codes[code.code_hash] = code
 
-    async def mark_used(self, code_id: uuid.UUID) -> None:
+    async def consume(self, code_id: uuid.UUID) -> bool:
         for c in self._codes.values():
             if c.id == code_id:
+                if c.is_used:
+                    return False
                 c.mark_used()
+                return True
+        return False
 
 
 class FakeProviderAccountRepository(ProviderAccountRepository):

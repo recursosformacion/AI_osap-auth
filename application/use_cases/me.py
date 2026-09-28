@@ -122,7 +122,8 @@ class ConfirmChangeEmailUseCase:
         user = await self._ctx.users.get_by_id(record.user_id)
         if user is None:
             raise InvalidTokenError("token de cambio de email inválido")
-        await self._ctx.tokens.mark_used(record.id)
+        if not await self._ctx.tokens.consume(record.id):
+            raise InvalidTokenError("token de cambio de email ya utilizado")
         await audit(
             self._ctx,
             event_type="email.changed",

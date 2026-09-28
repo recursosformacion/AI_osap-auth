@@ -18,4 +18,10 @@ class AuthorizationCodeRepository(ABC):
     async def save(self, code: AuthorizationCode) -> None: ...
 
     @abstractmethod
-    async def mark_used(self, code_id: uuid.UUID) -> None: ...
+    async def consume(self, code_id: uuid.UUID) -> bool:
+        """Marca el código como usado de forma atómica (CAS).
+
+        Devuelve `True` solo si esta llamada lo consumió; bajo doble canje concurrente,
+        exactamente una llamada obtiene `True`.
+        """
+        ...

@@ -43,13 +43,16 @@ class VerifyEmailUseCase:
         if user.email_verified:
             raise EmailAlreadyVerifiedError("email ya verificado")
 
+        # Consumo atómico: bajo doble verificación concurrente, solo una gana.
+        if not await self._ctx.tokens.consume(record.id):
+            raise InvalidTokenError("token de verificación ya utilizado")
+
         from datetime import UTC, datetime
 
         user.email_verified_at = datetime.now(UTC)
         user.status = UserStatus.ACTIVE
         user.touch()
         await self._ctx.users.save(user)
-        await self._ctx.tokens.mark_used(record.id)
         await audit(
             self._ctx,
             event_type="email.verified",

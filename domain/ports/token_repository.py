@@ -18,4 +18,10 @@ class TokenRepository(ABC):
     async def save(self, token: TokenRecord) -> None: ...
 
     @abstractmethod
-    async def mark_used(self, token_id: uuid.UUID) -> None: ...
+    async def consume(self, token_id: uuid.UUID) -> bool:
+        """Marca el token como usado de forma atómica (CAS).
+
+        Devuelve `True` solo si esta llamada lo consumió; bajo doble uso concurrente,
+        exactamente una llamada obtiene `True`.
+        """
+        ...

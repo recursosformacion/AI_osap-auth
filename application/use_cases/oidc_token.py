@@ -82,7 +82,8 @@ class ExchangeAuthorizationCodeUseCase:
         elif client.pkce_required:
             raise OAuthError("invalid_request", "PKCE requerido")
 
-        await self._ctx.authorization_codes.mark_used(record.id)
+        if not await self._ctx.authorization_codes.consume(record.id):
+            raise OAuthError("invalid_grant", "code ya utilizado")
 
         raw_refresh = self._ctx.secret_generator.generate(48)
         session = Session.new(

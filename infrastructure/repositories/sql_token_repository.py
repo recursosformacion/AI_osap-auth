@@ -56,9 +56,11 @@ class SqlTokenRepository(TokenRepository):
                 ),
             )
 
-    async def mark_used(self, token_id: uuid.UUID) -> None:
+    async def consume(self, token_id: uuid.UUID) -> bool:
+        # CAS: solo el primer UPDATE (used_at NULL) afecta a una fila.
         async with cursor(self._pool) as cur:
             await cur.execute(
                 "UPDATE tokens SET used_at=NOW(6) WHERE id=%s AND used_at IS NULL",
                 (str(token_id),),
             )
+            return cur.rowcount == 1
