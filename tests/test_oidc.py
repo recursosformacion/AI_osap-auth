@@ -8,6 +8,8 @@ from fastapi.testclient import TestClient
 
 from application.context import AuthContext
 from domain.entities.oauth_client import OAuthClient
+from domain.entities.user import UserStatus
+from domain.services.email_utils import normalize_email
 from domain.util import pkce_challenge
 
 CLIENT_ID = "81c78ac9-2dfc-4ecd-8f59-b2a45eea7e41"  # UUID como el cliente web real
@@ -228,6 +230,30 @@ async def test_refresh_token_flow(ctx: AuthContext, app: TestClient) -> None:
         body["access_token"], expected_audience=ctx.settings.audience
     )
     assert claims["aud"] == ctx.settings.audience
+
+
+async def test_refresh_token_rejected_for_disabled_user(ctx: AuthContext, app: TestClient) -> None:
+    await _seed_client(ctx)
+    user = _setup_user(app)
+    completed = _complete(app, user["access_token"])
+    tok = app.post("/oauth/token", data=_token_payload(completed["code"])).json()
+
+    lookup = ctx.email_protector.lookup(normalize_email("oidc@example.com"))
+    db_user = await ctx.users.get_by_email_lookup(lookup)
+    assert db_user is not None
+    db_user.status = UserStatus.DISABLED
+    await ctx.users.save(db_user)
+
+    r = app.post(
+        "/oauth/token",
+        data={
+            "grant_type": "refresh_token",
+            "refresh_token": tok["refresh_token"],
+            "client_id": str(CLIENT_ID),
+            "client_secret": CLIENT_SECRET,
+        },
+    )
+    assert r.status_code >= 400
 
 
 async def test_refresh_reuse_detected(ctx: AuthContext, app: TestClient) -> None:

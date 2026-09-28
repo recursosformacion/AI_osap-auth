@@ -112,6 +112,9 @@ class AdminUpdateUserUseCase:
             user.status = UserStatus(status)
         user.touch()
         await self._ctx.users.save(user)
+        if user.status in (UserStatus.DISABLED, UserStatus.DELETED):
+            # Deshabilitar (o borrar lógicamente) debe cortar las sesiones activas.
+            await self._ctx.sessions.revoke_all_for_user(user.id)
         await audit(
             self._ctx, event_type="role.changed", actor=actor,
             subject=str(user.id), ip=ip, user_agent=user_agent, outcome="success",

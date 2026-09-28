@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 
 from application.audit import audit
 from application.context import AuthContext
+from domain.entities.user import UserStatus
 from domain.exceptions import InvalidTokenError, TokenReuseDetectedError, UnauthorizedError
 from domain.util import ensure_utc
 
@@ -79,7 +80,7 @@ class RefreshUseCase:
             raise InvalidTokenError("refresh token inválido")
 
         user = await self._ctx.users.get_by_id(session.user_id)
-        if user is None:
+        if user is None or user.status in (UserStatus.DISABLED, UserStatus.DELETED):
             raise InvalidTokenError("refresh token inválido")
 
         # Rotación: el hash actual pasa a ser el "anterior" (detección de reuso).

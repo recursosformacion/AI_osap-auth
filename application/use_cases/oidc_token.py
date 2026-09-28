@@ -10,6 +10,7 @@ from application.audit import audit
 from application.context import AuthContext
 from domain.entities.oauth_client import OAuthClient
 from domain.entities.session import Session
+from domain.entities.user import UserStatus
 from domain.exceptions import (
     InvalidTokenError,
     OAuthClientNotFoundError,
@@ -176,6 +177,10 @@ class RefreshTokenGrantUseCase:
         ):
             raise InvalidTokenError("refresh token inválido")
 
+        user = await self._ctx.users.get_by_id(session.user_id)
+        if user is None or user.status in (UserStatus.DISABLED, UserStatus.DELETED):
+            raise InvalidTokenError("refresh token inválido")
+
         new_refresh = self._ctx.secret_generator.generate(48)
         session.previous_refresh_token_hash = session.refresh_token_hash
         session.refresh_token_hash = self._ctx.token_hasher.hash(new_refresh)
@@ -184,10 +189,6 @@ class RefreshTokenGrantUseCase:
             seconds=self._ctx.settings.refresh_token_ttl_seconds
         )
         await self._ctx.sessions.save(session)
-
-        user = await self._ctx.users.get_by_id(session.user_id)
-        if user is None:
-            raise InvalidTokenError("refresh token inválido")
 
         access = self._ctx.token_provider.issue_access_token(
             user_id=user.id,

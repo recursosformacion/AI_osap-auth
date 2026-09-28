@@ -9,6 +9,7 @@ import pytest
 from application.use_cases.login import LoginUseCase
 from application.use_cases.refresh import RefreshUseCase
 from application.use_cases.register import RegisterUseCase
+from domain.entities.user import UserStatus
 from domain.exceptions import InvalidTokenError, TokenReuseDetectedError
 from tests.fakes import make_context
 
@@ -48,3 +49,15 @@ async def test_refresh_invalid_token() -> None:
     ctx, _ = make_context()
     with pytest.raises(InvalidTokenError):
         await RefreshUseCase(ctx).execute(refresh_token="garbage", ip=None, user_agent=None)
+
+
+@pytest.mark.parametrize("status", [UserStatus.DISABLED, UserStatus.DELETED])
+async def test_refresh_rechazado_si_usuario_no_activo(status: UserStatus) -> None:
+    ctx, _ = make_context()
+    first_refresh = await _login(ctx)
+    user = next(iter(ctx.users._users.values()))  # noqa: SLF001
+    user.status = status
+    await ctx.users.save(user)
+
+    with pytest.raises(InvalidTokenError):
+        await RefreshUseCase(ctx).execute(refresh_token=first_refresh, ip=None, user_agent=None)

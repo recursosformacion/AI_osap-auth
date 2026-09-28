@@ -63,6 +63,28 @@ async def test_admin_update_roles_and_status() -> None:
     assert updated["name"] == "Renombrado"
 
 
+async def test_admin_deshabilitar_revoca_sesiones() -> None:
+    ctx, _ = make_context()
+    await RegisterUseCase(ctx).execute(
+        email="u@example.com", password="s3cret-password", ip=None, user_agent=None
+    )
+    await LoginUseCase(ctx).execute(
+        email="u@example.com", password="s3cret-password", ip=None, user_agent=None
+    )
+    user = next(iter(ctx.users._users.values()))  # noqa: SLF001
+    sessions_before = await ctx.sessions.list_for_user(user.id)
+    assert sessions_before
+
+    await AdminUpdateUserUseCase(ctx).execute(
+        user_id=user.id, name=None, roles=None, status="disabled",
+        actor="admin", ip=None, user_agent=None,
+    )
+
+    sessions_after = await ctx.sessions.list_for_user(user.id)
+    assert sessions_after
+    assert all(s.revoked_at is not None for s in sessions_after)
+
+
 async def test_admin_get_missing_user_404() -> None:
     ctx, _ = make_context()
     with pytest.raises(UserNotFoundError):
