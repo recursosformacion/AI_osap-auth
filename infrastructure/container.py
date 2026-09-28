@@ -62,8 +62,13 @@ def build_settings_view(settings: Settings) -> AuthSettingsView:
 
 
 def build_email_sender(settings: Settings) -> EmailSender:
-    """SMTP si hay host configurado; si no, remitente falso (dev/test: no envía)."""
+    """SMTP si hay host configurado; en producción es obligatorio (fallo de arranque)."""
     if not settings.smtp_host:
+        if settings.env == "production":
+            raise RuntimeError(
+                "osap-auth: SMTP no configurado en producción "
+                "(smtp.host / OSAP_AUTH_SMTP_HOST); FakeEmailSender no es válido en producción"
+            )
         return FakeEmailSender()
     return SmtpEmailSender(
         SmtpSettings(
