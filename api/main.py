@@ -4,17 +4,20 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any
 
 import aiomysql
-import yaml
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.errors import register_exception_handlers
 from api.routes import auth, jwks, oauth, oidc, password_reset, social, system
 from application.context import AuthContext
-from infrastructure.config import PROJECT_ROOT, Settings, load_settings
+from infrastructure.config import (
+    PROJECT_ROOT,
+    Settings,
+    load_settings,
+    validate_startup_config,
+)
 from infrastructure.container import build_context
 from infrastructure.db.connection import create_pool
 
@@ -43,18 +46,9 @@ def _include_routers(app: FastAPI) -> None:
 
 
 def _validate_config() -> None:
-    try:
-        from osap.bootstrap.configuration import validate_generic_service_config
-    except ImportError:
-        return
-
     settings = load_settings()
     config_path = settings.config_yaml() or (PROJECT_ROOT / "config.yaml")
-    data: dict[str, Any] = {}
-    if config_path.exists():
-        data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
-
-    validate_generic_service_config("osap-auth", data, config_path)
+    validate_startup_config(config_path)
 
 
 def create_app(ctx: AuthContext) -> FastAPI:

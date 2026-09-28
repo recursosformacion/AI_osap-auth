@@ -6,6 +6,7 @@ de un fichero YAML (`config.yaml`) para valores no secretos.
 
 from __future__ import annotations
 
+import logging
 import os
 from functools import lru_cache
 from pathlib import Path
@@ -15,6 +16,67 @@ import yaml
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+logger = logging.getLogger(__name__)
+
+# Claves obligatorias en producción (fail-closed). Nombres reales del config.yaml de
+# osap-auth (`database.*`, `crypto.jwt_*`) y `key_version` en la raíz.
+_REQUIRED_KEYS: dict[str, tuple[str, ...]] = {
+    "database": ("host", "name", "user", "password"),
+    "crypto": ("jwt_private_key", "jwt_public_key"),
+}
+_REQUIRED_TOP_LEVEL: tuple[str, ...] = ("key_version",)
+
+
+def resolve_config_env(data: dict[str, Any]) -> str:
+    """Entorno efectivo: `OSAP_AUTH_ENV` > `app.env` del YAML > production (fail-closed)."""
+    explicit = os.environ.get("OSAP_AUTH_ENV", "").strip().lower()
+    if explicit:
+        return explicit
+    app = data.get("app")
+    if isinstance(app, dict):
+        value = app.get("env")
+        if isinstance(value, str) and value.strip():
+            return value.strip().lower()
+    return "production"
+
+
+def missing_required_keys(data: dict[str, Any]) -> list[str]:
+    """Devuelve las claves obligatorias ausentes o vacías (`seccion.clave`)."""
+    missing: list[str] = []
+    for section, keys in _REQUIRED_KEYS.items():
+        block = data.get(section)
+        for key in keys:
+            value = block.get(key) if isinstance(block, dict) else None
+            if value is None or (isinstance(value, str) and not value.strip()):
+                missing.append(f"{section}.{key}")
+    for key in _REQUIRED_TOP_LEVEL:
+        value = data.get(key)
+        if value is None or (isinstance(value, str) and not value.strip()):
+            missing.append(key)
+    return missing
+
+
+def validate_startup_config(config_path: Path | None = None) -> None:
+    """Valida la configuración al arrancar.
+
+    En producción (o si no hay marca explícita de entorno) falla cerrado ante cualquier
+    clave obligatoria ausente; en desarrollo/test solo registra un aviso.
+    """
+    path = config_path or PROJECT_ROOT / "config.yaml"
+    data: dict[str, Any] = {}
+    if path.exists():
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    missing = missing_required_keys(data)
+    if resolve_config_env(data) == "production" and missing:
+        raise SystemExit(
+            f"[osap-auth] configuración inválida ({path}): faltan {', '.join(missing)}"
+        )
+    if missing:
+        logger.warning(
+            "[osap-auth] configuración incompleta (%s): faltan %s", path, ", ".join(missing)
+        )
+
 
 _FALSE = {"0", "false", "no", "off", ""}
 
