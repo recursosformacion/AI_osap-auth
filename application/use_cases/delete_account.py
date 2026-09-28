@@ -21,6 +21,8 @@ class DeleteAccountUseCase:
 
         # Invalidar sesiones y tokens de un solo uso de la cuenta.
         await self._ctx.sessions.revoke_all_for_user(user.id)
+        # Quitar los vínculos sociales para que el proveedor no apunte a una cuenta borrada.
+        await self._ctx.provider_accounts.delete_for_user(user.id)
 
         # Borrado lógico: se mantiene el identificador y el estado para trazabilidad,
         # se eliminan credenciales y datos personales recuperables.

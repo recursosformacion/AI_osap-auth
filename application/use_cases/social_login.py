@@ -194,6 +194,8 @@ class SocialLoginCallbackUseCase:
         if account is not None:
             user = await self._ctx.users.get_by_id(account.user_id)
             if user is not None:
+                if user.status in (UserStatus.DISABLED, UserStatus.DELETED):
+                    raise OAuthError("access_denied", "cuenta no activa")
                 return user
 
         email = profile.email
@@ -227,6 +229,11 @@ class SocialLoginCallbackUseCase:
                 outcome="success",
                 context={"provider": provider.name, "verified": profile.email_verified},
             )
+        elif not profile.email_verified:
+            # No se vincula a una cuenta existente con un email sin verificar.
+            raise OAuthError("email_not_verified", "el email del proveedor no está verificado")
+        elif user.status in (UserStatus.DISABLED, UserStatus.DELETED):
+            raise OAuthError("access_denied", "cuenta no activa")
 
         new_account = ProviderAccount.new(
             provider=provider.name,

@@ -57,3 +57,9 @@ class SqlProviderAccountRepository(ProviderAccountRepository):
                     account.linked_at,
                 ),
             )
+
+    async def delete_for_user(self, user_id: uuid.UUID) -> None:
+        async with cursor(self._pool) as cur:
+            await cur.execute(
+                "DELETE FROM provider_accounts WHERE user_id=%s", (str(user_id),)
+            )

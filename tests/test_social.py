@@ -5,11 +5,14 @@ from __future__ import annotations
 import pytest
 
 from application.context import AuthContext
+from application.use_cases.delete_account import DeleteAccountUseCase
+from application.use_cases.register import RegisterUseCase
 from application.use_cases.social_login import (
     SocialLoginCallbackUseCase,
     SocialLoginStartUseCase,
 )
 from domain.entities.oauth_client import OAuthClient
+from domain.entities.user import UserStatus
 from domain.exceptions import OAuthError
 from domain.ports.social import ProviderProfile, SocialProvider
 from tests.fakes import (
@@ -155,3 +158,53 @@ async def test_callback_without_downstream_redirects_to_login() -> None:
     )
     assert result.redirect_uri.endswith("/auth/login")
     assert len(await ctx.users.list_all()) == 1
+
+
+async def _social_login(ctx: AuthContext, code: str) -> None:
+    start = await SocialLoginStartUseCase(ctx).execute(provider="google", params={})
+    state_token = start.split("state=", 1)[1]
+    await SocialLoginCallbackUseCase(ctx).execute(
+        provider="google", code=code, state_token=state_token, ip=None, user_agent=None
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [UserStatus.DISABLED, UserStatus.DELETED])
+async def test_callback_rechaza_cuenta_en_estado_terminal(status: UserStatus) -> None:
+    ctx = await _make_ctx()
+    await _social_login(ctx, "c1")
+    user = (await ctx.users.list_all())[0]
+    user.status = status
+    await ctx.users.save(user)
+
+    with pytest.raises(OAuthError):
+        await _social_login(ctx, "c2")
+
+
+@pytest.mark.asyncio
+async def test_callback_no_vincula_email_no_verificado() -> None:
+    ctx = await _make_ctx(
+        ProviderProfile(sub="google-999", email="local@example.com", name="X", email_verified=False)
+    )
+    await RegisterUseCase(ctx).execute(
+        email="local@example.com", password="s3cret-password", ip=None, user_agent=None
+    )
+
+    with pytest.raises(OAuthError):
+        await _social_login(ctx, "c1")
+
+    # No se creó vínculo ni usuario nuevo.
+    assert await ctx.provider_accounts.get_by_provider_sub("google", "google-999") is None
+    assert len(await ctx.users.list_all()) == 1
+
+
+@pytest.mark.asyncio
+async def test_borrado_de_cuenta_limpia_provider_accounts() -> None:
+    ctx = await _make_ctx()
+    await _social_login(ctx, "c1")
+    user = (await ctx.users.list_all())[0]
+    assert await ctx.provider_accounts.get_by_provider_sub("google", "google-123") is not None
+
+    await DeleteAccountUseCase(ctx).execute(user_id=user.id, ip=None, user_agent=None)
+
+    assert await ctx.provider_accounts.get_by_provider_sub("google", "google-123") is None

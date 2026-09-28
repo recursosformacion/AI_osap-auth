@@ -134,6 +134,7 @@ class AdminDeleteUserUseCase:
         if user is None:
             return
         await self._ctx.sessions.revoke_all_for_user(user.id)
+        await self._ctx.provider_accounts.delete_for_user(user.id)
         user.status = UserStatus.DELETED
         user.email_verified_at = None
         user.email_cipher = b""

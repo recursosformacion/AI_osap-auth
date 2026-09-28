@@ -182,6 +182,11 @@ class FakeProviderAccountRepository(ProviderAccountRepository):
     async def save(self, account: ProviderAccount) -> None:
         self._accounts[(account.provider, account.provider_sub)] = account
 
+    async def delete_for_user(self, user_id: uuid.UUID) -> None:
+        self._accounts = {
+            key: acc for key, acc in self._accounts.items() if acc.user_id != user_id
+        }
+
 
 class FakeAuditRepository(AuditRepository):
     def __init__(self) -> None:

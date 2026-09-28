@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from abc import ABC, abstractmethod
 
 from domain.entities.provider_account import ProviderAccount
@@ -17,3 +18,6 @@ class ProviderAccountRepository(ABC):
 
     @abstractmethod
     async def save(self, account: ProviderAccount) -> None: ...
+
+    @abstractmethod
+    async def delete_for_user(self, user_id: uuid.UUID) -> None: ...
