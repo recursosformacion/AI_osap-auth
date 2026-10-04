@@ -43,6 +43,27 @@ def current_user(request: Request, ctx: AuthContext = Depends(get_ctx)) -> dict[
         raise UnauthorizedError("token inválido o caducado") from None
 
 
+def require_service_scope(scope: str, audience: str) -> Any:
+    """Dependency factory M2M: exige un service token válido con `aud=audience` y `scope`.
+
+    No valida tokens de usuario (esos no son de servicio). 401 si el token falta/es inválido;
+    403 si es válido pero no porta el scope requerido.
+    """
+
+    def _dep(request: Request, ctx: AuthContext = Depends(get_ctx)) -> dict[str, Any]:
+        token = _bearer_token(request)
+        try:
+            claims = ctx.token_provider.verify_service_token(token, expected_audience=audience)
+        except jwt.InvalidTokenError:
+            raise UnauthorizedError("token de servicio inválido o caducado") from None
+        granted = set(str(claims.get("scope") or "").split())
+        if scope not in granted:
+            raise ForbiddenError("scope insuficiente")
+        return claims
+
+    return _dep
+
+
 def require_role(role: str) -> Any:
     """Dependency factory: exige un rol, con la BD de usuarios como autoridad.
 

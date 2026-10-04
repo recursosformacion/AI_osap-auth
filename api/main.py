@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.errors import register_exception_handlers
-from api.routes import auth, jwks, oauth, oidc, password_reset, social, system
+from api.routes import auth, jwks, m2m_users, oauth, oidc, password_reset, social, system
 from application.context import AuthContext
 from infrastructure.config import (
     PROJECT_ROOT,
@@ -43,6 +43,7 @@ def _include_routers(app: FastAPI) -> None:
     app.include_router(jwks.router)
     app.include_router(oidc.router)
     app.include_router(social.router)
+    app.include_router(m2m_users.router)
 
 
 def _validate_config() -> None:

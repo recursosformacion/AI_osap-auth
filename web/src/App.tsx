@@ -3,6 +3,8 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { AccountLayout } from './components/AccountLayout'
 import { AccountPage } from './pages/Account/AccountPage'
 import { AdminUsersPage } from './pages/AdminUsers/AdminUsersPage'
+import { OnboardingPage } from './pages/Account/OnboardingPage'
+import { PrivacyPage } from './pages/Account/PrivacyPage'
 import { ChangeEmailPage } from './pages/ChangeEmail/ChangeEmailPage'
 import { ChangePasswordPage } from './pages/ChangePassword/ChangePasswordPage'
 import { DeleteAccountPage } from './pages/DeleteAccount/DeleteAccountPage'
@@ -39,6 +41,8 @@ export function App() {
         }
       >
         <Route index element={<AccountPage />} />
+        <Route path="onboarding" element={<OnboardingPage />} />
+        <Route path="privacy" element={<PrivacyPage />} />
         <Route path="sessions" element={<SessionsPage />} />
         <Route path="password" element={<ChangePasswordPage />} />
         <Route path="email" element={<ChangeEmailPage />} />

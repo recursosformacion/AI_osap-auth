@@ -217,6 +217,9 @@ class SocialLoginCallbackUseCase:
             if profile.email_verified:
                 user.status = UserStatus.ACTIVE
                 user.email_verified_at = datetime.now(UTC)
+            # Opt-out: registro social → visibilidad pública del nickname marcada por defecto.
+            user.nickname_public_consent = True
+            user.nickname_public_consent_at = datetime.now(UTC)
             user.touch()
             await self._ctx.users.save(user)
             await audit(

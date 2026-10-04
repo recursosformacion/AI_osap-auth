@@ -19,10 +19,12 @@ def public_user(ctx: AuthContext, user: User) -> dict[str, Any]:
         "user_id": str(user.id),
         "email": email,
         "name": user.name,
+        "nickname": user.nickname,
         "roles": user.roles,
         "email_verified": user.email_verified,
         "status": user.status.value,
         "created_at": user.created_at.isoformat() if user.created_at else None,
+        "nickname_public_consent": user.nickname_public_consent,
     }
 
 
@@ -119,6 +121,34 @@ class AdminUpdateUserUseCase:
             self._ctx, event_type="role.changed", actor=actor,
             subject=str(user.id), ip=ip, user_agent=user_agent, outcome="success",
             context={"roles": user.roles, "status": user.status.value},
+        )
+        return public_user(self._ctx, user)
+
+
+class SetPublicConsentUseCase:
+    """Autorización de cuenta para publicar el nickname (no por reconocimiento).
+
+    La gestiona el propio usuario o un admin; queda **auditada por separado**.
+    """
+
+    def __init__(self, ctx: AuthContext) -> None:
+        self._ctx = ctx
+
+    async def execute(
+        self, *, user_id: uuid.UUID, value: bool, actor: str, admin: bool,
+        ip: str | None, user_agent: str | None,
+    ) -> dict[str, Any]:
+        user = await self._ctx.users.get_by_id(user_id)
+        if user is None or user.status == UserStatus.DELETED:
+            raise UserNotFoundError("usuario no encontrado")
+        user.nickname_public_consent = bool(value)
+        user.nickname_public_consent_at = datetime.now(UTC) if value else None
+        user.touch()
+        await self._ctx.users.save(user)
+        await audit(
+            self._ctx, event_type="user.public_consent.changed", actor=actor,
+            subject=str(user.id), ip=ip, user_agent=user_agent, outcome="success",
+            context={"value": bool(value), "by": "admin" if admin else "user"},
         )
         return public_user(self._ctx, user)
 

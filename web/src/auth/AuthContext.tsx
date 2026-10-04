@@ -22,6 +22,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   refresh: () => Promise<boolean>
+  reload: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -91,6 +92,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   )
 
+  const reload = useCallback(async () => {
+    try {
+      setUser(await authApi.getMe())
+    } catch {
+      /* se conserva el usuario actual si falla */
+    }
+  }, [])
+
   const refresh = useCallback(async (): Promise<boolean> => {
     const token = authStorage.getRefreshToken()
     if (!token) return false
@@ -128,8 +137,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       logout,
       refresh,
+      reload,
     }),
-    [status, user, login, logout, refresh],
+    [status, user, login, logout, refresh, reload],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

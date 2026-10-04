@@ -154,6 +154,11 @@ class Settings:
         self.public_base_url: str = "http://127.0.0.1:8200"
         self.public_path_prefix: str = ""
         self.web_base_url: str = "http://127.0.0.1:5173"
+        # Versiones legales vigentes (las que exige el onboarding) y rutas de los documentos.
+        self.terms_version: str = "2026-10-01"
+        self.privacy_version: str = "2026-10-01"
+        self.terms_url: str = "/terms"
+        self.privacy_url: str = "/privacy"
         self.authorization_code_ttl_seconds: int = 300
         self.cors_origins: list[str] = []
         # SMTP para correos transaccionales (verificación / reset). Vacío = sin envío real
@@ -213,6 +218,12 @@ class Settings:
         self.authorization_code_ttl_seconds = int(
             data.get("authorization_code_ttl_seconds", self.authorization_code_ttl_seconds)
         )
+        legal = data.get("legal", {})
+        if isinstance(legal, dict):
+            self.terms_version = str(legal.get("terms_version", self.terms_version))
+            self.privacy_version = str(legal.get("privacy_version", self.privacy_version))
+            self.terms_url = str(legal.get("terms_url", self.terms_url))
+            self.privacy_url = str(legal.get("privacy_url", self.privacy_url))
         origins = data.get("cors_origins", self.cors_origins)
         if isinstance(origins, str):
             origins = [o.strip() for o in origins.split(",") if o.strip()]

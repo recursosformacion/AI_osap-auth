@@ -20,14 +20,35 @@ class GetMeUseCase:
         if user is None:
             raise UnauthorizedError("usuario no encontrado")
         email = self._ctx.email_protector.decrypt(user.email_cipher)
+        settings = self._ctx.settings
         return {
             "user_id": str(user.id),
             "email": email,
             "name": user.name,
+            "nickname": user.nickname,
             "roles": user.roles,
             "email_verified": user.email_verified,
             "status": user.status.value,
             "created_at": user.created_at.isoformat() if user.created_at else None,
+            "nickname_public_consent": user.nickname_public_consent,
+            "onboarding": {
+                "required": user.onboarding_required(
+                    terms_version=settings.terms_version,
+                    privacy_version=settings.privacy_version,
+                ),
+                "completed_at": (
+                    user.onboarding_completed_at.isoformat()
+                    if user.onboarding_completed_at
+                    else None
+                ),
+                "terms_accepted": user.terms_accepted_at is not None
+                and user.terms_version == settings.terms_version,
+                "privacy_accepted": user.privacy_accepted_at is not None
+                and user.privacy_version == settings.privacy_version,
+                "nickname_set": user.nickname is not None,
+                "terms_version_current": settings.terms_version,
+                "privacy_version_current": settings.privacy_version,
+            },
         }
 
 

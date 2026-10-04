@@ -79,14 +79,70 @@ class RegisterResponse(BaseModel):
     message: str
 
 
+class PublicNameItem(BaseModel):
+    """Item del lookup M2M de identidad pública.
+
+    Expone `id`, `name`, `nickname` y `nickname_public_consent` (autorización de cuenta para
+    mostrarse públicamente). Sigue sin email ni roles.
+    """
+
+    id: str
+    name: str | None = None
+    nickname: str | None = None
+    nickname_public_consent: bool = False
+
+
+class PublicUserItem(BaseModel):
+    """Entrada de la lista pública de colaboradores: `id` + `nickname` (sin name/email/roles)."""
+
+    id: str
+    nickname: str
+
+
+class OnboardingState(BaseModel):
+    """Estado de onboarding derivado de los datos reales (fuente de verdad: Auth)."""
+
+    required: bool
+    completed_at: str | None = None
+    terms_accepted: bool
+    privacy_accepted: bool
+    nickname_set: bool
+    terms_version_current: str
+    privacy_version_current: str
+
+
 class UserMeResponse(BaseModel):
     user_id: str
     email: str
     name: str | None = None
+    nickname: str | None = None
     roles: list[str]
     email_verified: bool
     status: str
     created_at: str | None = None
+    onboarding: OnboardingState | None = None
+    nickname_public_consent: bool = False
+
+
+class OnboardingRequest(BaseModel):
+    """Completa el onboarding: handle único + aceptación de las versiones legales vigentes."""
+
+    nickname: str = Field(min_length=3, max_length=30)
+    terms_version: str
+    privacy_version: str
+
+
+class LegalCurrentResponse(BaseModel):
+    terms_version: str
+    privacy_version: str
+    terms_url: str
+    privacy_url: str
+
+
+class PublicConsentRequest(BaseModel):
+    """Autorización de cuenta para publicar el nickname."""
+
+    value: bool
 
 
 class SessionInfo(BaseModel):

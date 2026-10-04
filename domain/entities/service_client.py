@@ -11,8 +11,10 @@ SCOPES: tuple[str, ...] = (
     "storage:write",
     "storage:admin",
     "auth:admin",
+    "auth:read_public_names",
     "user.deleted:subscribe",
     "support:ingest",
+    "support:admin",
 )
 
 VALID_SCOPES: set[str] = set(SCOPES)

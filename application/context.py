@@ -49,6 +49,10 @@ class AuthSettingsView:
     authorization_code_ttl_seconds: int
     social_state_secret: str
     social_providers_enabled: dict[str, bool]
+    terms_version: str
+    privacy_version: str
+    terms_url: str
+    privacy_url: str
 
     @property
     def effective_issuer(self) -> str:

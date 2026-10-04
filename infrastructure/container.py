@@ -58,6 +58,10 @@ def build_settings_view(settings: Settings) -> AuthSettingsView:
         authorization_code_ttl_seconds=settings.authorization_code_ttl_seconds,
         social_state_secret=settings.social_state_secret,
         social_providers_enabled=settings.social_enabled,
+        terms_version=settings.terms_version,
+        privacy_version=settings.privacy_version,
+        terms_url=settings.terms_url,
+        privacy_url=settings.privacy_url,
     )
 
 

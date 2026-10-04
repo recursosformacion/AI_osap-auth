@@ -20,8 +20,11 @@ from api.schemas import (
     ChangeEmailRequest,
     ChangePasswordRequest,
     ConfirmChangeEmailRequest,
+    LegalCurrentResponse,
     LoginRequest,
     LoginResponse,
+    OnboardingRequest,
+    PublicConsentRequest,
     RefreshRequest,
     RegisterRequest,
     RegisterResponse,
@@ -38,6 +41,7 @@ from application.use_cases.admin_users import (
     AdminGetUserUseCase,
     AdminListUsersUseCase,
     AdminUpdateUserUseCase,
+    SetPublicConsentUseCase,
 )
 from application.use_cases.delete_account import DeleteAccountUseCase
 from application.use_cases.login import LoginUseCase
@@ -46,6 +50,10 @@ from application.use_cases.me import (
     ChangePasswordUseCase,
     ConfirmChangeEmailUseCase,
     GetMeUseCase,
+)
+from application.use_cases.onboarding import (
+    CompleteOnboardingUseCase,
+    GetLegalCurrentUseCase,
 )
 from application.use_cases.refresh import RefreshUseCase
 from application.use_cases.register import RegisterUseCase
@@ -211,12 +219,58 @@ async def revoke_session(
     return JSONResponse({"message": "sesión revocada"})
 
 
+@router.get("/legal/current", response_model=LegalCurrentResponse)
+async def legal_current(ctx: AuthContext = Depends(get_ctx)) -> LegalCurrentResponse:
+    """Versión legal vigente + rutas de documentos (recurso público, sin sesión)."""
+    return LegalCurrentResponse(**GetLegalCurrentUseCase(ctx).execute())
+
+
+@router.post("/onboarding", response_model=UserMeResponse)
+async def complete_onboarding(
+    body: OnboardingRequest,
+    ctx: AuthContext = Depends(get_ctx),
+    user: dict = Depends(current_user),
+    ip: str | None = Depends(client_ip),
+    ua: str | None = Depends(client_user_agent),
+) -> UserMeResponse:
+    """Nickname (handle único) + aceptación de ToS y Privacidad, en una operación atómica."""
+    result = await CompleteOnboardingUseCase(ctx).execute(
+        user_id=uuid.UUID(user["sub"]),
+        nickname=body.nickname,
+        terms_version=body.terms_version,
+        privacy_version=body.privacy_version,
+        ip=ip,
+        user_agent=ua,
+    )
+    return UserMeResponse(**result)
+
+
 @router.get("/me", response_model=UserMeResponse)
 async def me(
     ctx: AuthContext = Depends(get_ctx),
     user: dict = Depends(current_user),
 ) -> UserMeResponse:
     return UserMeResponse(**await GetMeUseCase(ctx).execute(user_id=uuid.UUID(user["sub"])))
+
+
+@router.put("/me/public-consent", response_model=UserMeResponse)
+async def set_my_public_consent(
+    body: PublicConsentRequest,
+    ctx: AuthContext = Depends(get_ctx),
+    user: dict = Depends(current_user),
+    ip: str | None = Depends(client_ip),
+    ua: str | None = Depends(client_user_agent),
+) -> UserMeResponse:
+    """El propio usuario autoriza (o revoca) publicar su nickname."""
+    result = await SetPublicConsentUseCase(ctx).execute(
+        user_id=uuid.UUID(user["sub"]),
+        value=body.value,
+        actor=user["sub"],
+        admin=False,
+        ip=ip,
+        user_agent=ua,
+    )
+    return UserMeResponse(**result)
 
 
 @router.patch("/me", response_model=UserMeResponse)
@@ -309,6 +363,27 @@ async def admin_get_user(
     user: dict = Depends(require_role("admin")),
 ) -> UserMeResponse:
     result = await AdminGetUserUseCase(ctx).execute(user_id=uuid.UUID(user_id))
+    return UserMeResponse(**result)
+
+
+@router.put("/admin/users/{user_id}/public-consent", response_model=UserMeResponse)
+async def admin_set_public_consent(
+    user_id: str,
+    body: PublicConsentRequest,
+    ctx: AuthContext = Depends(get_ctx),
+    admin: dict = Depends(require_role("admin")),
+    ip: str | None = Depends(client_ip),
+    ua: str | None = Depends(client_user_agent),
+) -> UserMeResponse:
+    """Un admin activa/desactiva la autorización pública del usuario (operación auditada)."""
+    result = await SetPublicConsentUseCase(ctx).execute(
+        user_id=uuid.UUID(user_id),
+        value=body.value,
+        actor=admin["sub"],
+        admin=True,
+        ip=ip,
+        user_agent=ua,
+    )
     return UserMeResponse(**result)
 
 

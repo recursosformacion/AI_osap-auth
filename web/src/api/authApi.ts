@@ -7,6 +7,7 @@ import { httpClient } from './httpClient'
 import type {
   CompleteAuthorizationInput,
   CompleteAuthorizationResponse,
+  LegalCurrent,
   LoginResponse,
   MessageResponse,
   RegisterResponse,
@@ -57,6 +58,19 @@ export const authApi = {
   },
   getMe(): Promise<UserMe> {
     return httpClient.get<UserMe>('/auth/me')
+  },
+  getLegalCurrent(): Promise<LegalCurrent> {
+    return httpClient.get<LegalCurrent>('/auth/legal/current')
+  },
+  completeOnboarding(input: {
+    nickname: string
+    terms_version: string
+    privacy_version: string
+  }): Promise<UserMe> {
+    return httpClient.post<UserMe>('/auth/onboarding', input)
+  },
+  setPublicConsent(value: boolean): Promise<UserMe> {
+    return httpClient.put<UserMe>('/auth/me/public-consent', { value })
   },
   changePassword(currentPassword: string, newPassword: string): Promise<MessageResponse> {
     return httpClient.post<MessageResponse>('/auth/me/password', {

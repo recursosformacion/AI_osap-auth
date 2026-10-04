@@ -18,14 +18,34 @@ export interface MessageResponse {
   message: string
 }
 
+export interface OnboardingState {
+  required: boolean
+  completed_at?: string | null
+  terms_accepted: boolean
+  privacy_accepted: boolean
+  nickname_set: boolean
+  terms_version_current: string
+  privacy_version_current: string
+}
+
+export interface LegalCurrent {
+  terms_version: string
+  privacy_version: string
+  terms_url: string
+  privacy_url: string
+}
+
 export interface UserMe {
   user_id: string
   email: string
   name?: string | null
+  nickname?: string | null
   roles: string[]
   email_verified: boolean
   status: string
   created_at: string | null
+  onboarding?: OnboardingState | null
+  nickname_public_consent?: boolean
 }
 
 export interface SessionInfo {

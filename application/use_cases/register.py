@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from application.audit import audit
 from application.context import AuthContext
@@ -73,6 +74,10 @@ class RegisterUseCase:
             key_version=self._ctx.settings.key_version,
             name=clean_name,
         )
+        # Opt-out: la visibilidad pública del nickname viene marcada por defecto; el usuario
+        # puede desmarcarla. No se publica hasta que exista nickname (onboarding).
+        user.nickname_public_consent = True
+        user.nickname_public_consent_at = datetime.now(UTC)
         await self._ctx.users.save(user)
 
         raw_token = self._ctx.secret_generator.generate(32)

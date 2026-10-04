@@ -103,6 +103,30 @@ class InvalidEmailError(DomainError):
     status_code = 422
 
 
+class TooManyIdentifiersError(DomainError):
+    """La petición excede el máximo de identificadores admitido por el endpoint."""
+
+    status_code = 422
+
+
+class InvalidNicknameError(DomainError):
+    """El nickname no cumple el formato o está reservado."""
+
+    status_code = 422
+
+
+class NicknameTakenError(DomainError):
+    """El nickname ya está en uso por otro usuario."""
+
+    status_code = 409
+
+
+class LegalVersionOutdatedError(DomainError):
+    """La versión legal enviada no es la vigente; hay que reaceptar los documentos."""
+
+    status_code = 409
+
+
 class ServiceClientNotFoundError(DomainError):
     """Client_id o client_secret de servicio inválidos."""
 

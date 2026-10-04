@@ -17,7 +17,7 @@ from domain.entities.provider_account import ProviderAccount
 from domain.entities.service_client import ServiceClient
 from domain.entities.session import Session
 from domain.entities.token_record import TokenPurpose, TokenRecord
-from domain.entities.user import User
+from domain.entities.user import User, UserStatus
 from domain.ports.audit_repository import AuditRepository
 from domain.ports.authorization_code_repository import AuthorizationCodeRepository
 from domain.ports.oauth_client_repository import OAuthClientRepository
@@ -61,6 +61,9 @@ class FakeUserRepository(UserRepository):
     async def get_by_id(self, user_id: uuid.UUID) -> User | None:
         return self._users.get(str(user_id))
 
+    async def get_by_ids(self, user_ids: list[uuid.UUID]) -> list[User]:
+        return [u for u in (self._users.get(str(i)) for i in user_ids) if u is not None]
+
     async def get_by_email_lookup(self, email_lookup: str) -> User | None:
         for u in self._users.values():
             if u.email_lookup == email_lookup:
@@ -70,8 +73,25 @@ class FakeUserRepository(UserRepository):
     async def exists(self, email_lookup: str) -> bool:
         return await self.get_by_email_lookup(email_lookup) is not None
 
+    async def nickname_norm_exists(
+        self, nickname_norm: str, *, exclude_user_id: uuid.UUID | None = None
+    ) -> bool:
+        return any(
+            u.nickname_norm == nickname_norm
+            and (exclude_user_id is None or str(u.id) != str(exclude_user_id))
+            for u in self._users.values()
+        )
+
     async def list_all(self) -> list[User]:
         return list(self._users.values())
+
+    async def list_public(self) -> list[User]:
+        public = [
+            u
+            for u in self._users.values()
+            if u.nickname_public_consent and u.nickname and u.status is not UserStatus.DELETED
+        ]
+        return sorted(public, key=lambda u: u.nickname or "")
 
     async def save(self, user: User) -> None:
         self._users[str(user.id)] = user
@@ -255,6 +275,10 @@ def make_settings_view() -> AuthSettingsView:
         authorization_code_ttl_seconds=300,
         social_state_secret="test-social-state-secret",
         social_providers_enabled={},
+        terms_version="2026-10-01",
+        privacy_version="2026-10-01",
+        terms_url="/terms",
+        privacy_url="/privacy",
     )
 
 

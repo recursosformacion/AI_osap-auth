@@ -18,12 +18,26 @@ export function AccountPage() {
     <div>
       <h2>Tu cuenta</h2>
 
+      {user.onboarding?.required && (
+        <section className="panel">
+          <h3 className="panel-title">Completa tu alta</h3>
+          <p className="panel-sub">
+            Elige tu nickname para poder aparecer en la lista pública de colaboradores.
+          </p>
+          <Link className="btn btn-primary btn-sm" to="/auth/account/onboarding">
+            Completar alta
+          </Link>
+        </section>
+      )}
+
       <section className="panel">
         <h3 className="panel-title">Cuenta</h3>
         <p className="panel-sub">Tus datos de identidad.</p>
         <dl>
           <dt className="muted">Nombre</dt>
           <dd>{user.name || '—'}</dd>
+          <dt className="muted">Nickname</dt>
+          <dd>{user.nickname || '—'}</dd>
           <dt className="muted">Email</dt>
           <dd>{user.email}</dd>
           <dt className="muted">Estado de verificación</dt>
@@ -48,6 +62,16 @@ export function AccountPage() {
           </Link>
           <Link className="btn btn-outline btn-sm" to="/auth/account/sessions">
             Sesiones activas
+          </Link>
+        </div>
+      </section>
+
+      <section className="panel">
+        <h3 className="panel-title">Privacidad y visibilidad</h3>
+        <p className="panel-sub">Controla si tu nickname aparece en la lista pública de colaboradores.</p>
+        <div className="row">
+          <Link className="btn btn-outline btn-sm" to="/auth/account/privacy">
+            Privacidad y visibilidad
           </Link>
         </div>
       </section>

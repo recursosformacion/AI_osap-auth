@@ -36,6 +36,15 @@ class User:
         key_version: int,
         name: str | None = None,
         email_verified_at: datetime | None = None,
+        nickname: str | None = None,
+        nickname_norm: str | None = None,
+        terms_version: str | None = None,
+        terms_accepted_at: datetime | None = None,
+        privacy_version: str | None = None,
+        privacy_accepted_at: datetime | None = None,
+        onboarding_completed_at: datetime | None = None,
+        nickname_public_consent: bool = False,
+        nickname_public_consent_at: datetime | None = None,
         created_at: datetime | None = None,
         updated_at: datetime | None = None,
     ) -> None:
@@ -48,12 +57,34 @@ class User:
         self.key_version = key_version
         self.name = name
         self.email_verified_at = email_verified_at
+        self.nickname = nickname
+        self.nickname_norm = nickname_norm
+        self.terms_version = terms_version
+        self.terms_accepted_at = terms_accepted_at
+        self.privacy_version = privacy_version
+        self.privacy_accepted_at = privacy_accepted_at
+        self.onboarding_completed_at = onboarding_completed_at
+        self.nickname_public_consent = nickname_public_consent
+        self.nickname_public_consent_at = nickname_public_consent_at
         self.created_at = created_at
         self.updated_at = updated_at
 
     @property
     def email_verified(self) -> bool:
         return self.email_verified_at is not None
+
+    def onboarding_required(self, *, terms_version: str, privacy_version: str) -> bool:
+        """Deriva si falta onboarding o hay que reaceptar la versión legal vigente.
+
+        Comprueba los NULL explícitamente (no depende de comparaciones con NULL).
+        """
+        return (
+            self.nickname is None
+            or self.terms_version is None
+            or self.terms_version != terms_version
+            or self.privacy_version is None
+            or self.privacy_version != privacy_version
+        )
 
     def has_role(self, role: str) -> bool:
         return role in self.roles
