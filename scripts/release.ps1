@@ -25,7 +25,8 @@ param(
     [string]$Domain = "auth.openmusicrepository.com",
     [switch]$SkipTests,
     [switch]$SkipMigrations,
-    [switch]$SkipFrontend
+    [switch]$SkipFrontend,
+    [switch]$WithConfig
 )
 
 $ErrorActionPreference = "Stop"
@@ -50,9 +51,13 @@ if (-not $SkipTests) {
     Write-Host "[1/8] Tests omitidos"
 }
 
-Write-Host "[2/8] Comprobando config.production.yaml..."
 $prodConfig = Join-Path $root "config.production.yaml"
-if (-not (Test-Path $prodConfig)) { throw "No existe config.production.yaml" }
+if ($WithConfig) {
+    Write-Host "[2/8] Comprobando config.production.yaml..."
+    if (-not (Test-Path $prodConfig)) { throw "No existe config.production.yaml" }
+} else {
+    Write-Host "[2/8] Config NO se despliega (usa -WithConfig para subir config.production.yaml)"
+}
 
 Write-Host "[3/8] Subiendo código del backend al servidor..."
 Invoke-Remote "mkdir -p $RemoteDir"
@@ -70,10 +75,17 @@ Write-Host "[4/8] Preparando venv en el servidor (si no existe)..."
 # y lint se ejecutan en local antes del release.
 Invoke-Remote "cd $RemoteDir && (test -x .venv/bin/python || python3 -m venv .venv) && ./.venv/bin/pip install -e . -q"
 
-Write-Host "[5/8] Desplegando config.production.yaml como config.yaml..."
-scp -o BatchMode=yes $prodConfig "${User}@${Server}:/tmp/config.production.yaml"
-if ($LASTEXITCODE -ne 0) { throw "Fallo al subir la configuración" }
-Invoke-Remote "cp /tmp/config.production.yaml $RemoteDir/config.yaml && rm -f /tmp/config.production.yaml"
+if ($WithConfig) {
+    Write-Host "[5/8] Desplegando config.production.yaml como config.yaml (LF)..."
+    $lf = Join-Path $env:TEMP "osap-auth.config.production.lf.yaml"
+    ([IO.File]::ReadAllText($prodConfig)) -replace "`r`n", "`n" | Set-Content -LiteralPath $lf -NoNewline -Encoding utf8
+    scp -o BatchMode=yes $lf "${User}@${Server}:/tmp/config.production.yaml"
+    if ($LASTEXITCODE -ne 0) { throw "Fallo al subir la configuración" }
+    Invoke-Remote "cp /tmp/config.production.yaml $RemoteDir/config.yaml && rm -f /tmp/config.production.yaml"
+} else {
+    Write-Host "[5/8] Config no se despliega; verificando config.yaml remoto..."
+    Invoke-Remote "test -f $RemoteDir/config.yaml"
+}
 
 if (-not $SkipMigrations) {
     Write-Host "[6/8] Ejecutando migraciones..."
