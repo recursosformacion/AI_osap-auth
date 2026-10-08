@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import UTC, datetime
 from typing import Any
 
 from application.audit import audit
 from application.context import AuthContext
+from application.identity_emails import nickname_assigned_email
 from domain.entities.user import ALL_ROLES, User, UserStatus
-from domain.exceptions import EmailTakenError, UserNotFoundError
+from domain.exceptions import EmailTakenError, NicknameTakenError, UserNotFoundError
 from domain.services.email_utils import normalize_email, validate_password
+from domain.services.nickname import validate as validate_nickname
+
+logger = logging.getLogger(__name__)
 
 
 def public_user(ctx: AuthContext, user: User) -> dict[str, Any]:
@@ -101,13 +106,26 @@ class AdminUpdateUserUseCase:
     async def execute(
         self, *, user_id: uuid.UUID, name: str | None, roles: list[str] | None,
         status: str | None, actor: str, ip: str | None, user_agent: str | None,
+        nickname: str | None = None,
     ) -> dict[str, Any]:
         user = await self._ctx.users.get_by_id(user_id)
         if user is None or user.status == UserStatus.DELETED:
             raise UserNotFoundError("usuario no encontrado")
 
+        previous_nickname = user.nickname
         if name is not None:
             user.name = name.strip() or None
+        if nickname is not None:
+            cleaned = nickname.strip()
+            if not cleaned:
+                user.nickname = None
+                user.nickname_norm = None
+            else:
+                norm = validate_nickname(cleaned)
+                if await self._ctx.users.nickname_norm_exists(norm, exclude_user_id=user.id):
+                    raise NicknameTakenError("nickname no disponible")
+                user.nickname = cleaned
+                user.nickname_norm = norm
         if roles is not None:
             user.roles = _validate_roles(roles)
         if status is not None:
@@ -120,9 +138,28 @@ class AdminUpdateUserUseCase:
         await audit(
             self._ctx, event_type="role.changed", actor=actor,
             subject=str(user.id), ip=ip, user_agent=user_agent, outcome="success",
-            context={"roles": user.roles, "status": user.status.value},
+            context={"roles": user.roles, "status": user.status.value, "nickname": user.nickname},
         )
+        if nickname is not None and user.nickname and user.nickname != previous_nickname:
+            self._send_nickname_email(user, user.nickname)
         return public_user(self._ctx, user)
+
+    def _send_nickname_email(self, user: User, nickname: str) -> None:
+        """Avisa al usuario de que le han nombrado; un fallo de correo no rompe el update."""
+        email = self._ctx.email_protector.decrypt(user.email_cipher) if user.email_cipher else ""
+        if not email:
+            logger.warning("nombramiento: usuario %s sin email; no se envía aviso", user.id)
+            return
+        try:
+            self._ctx.email_sender.send(
+                nickname_assigned_email(
+                    to=email,
+                    nickname=nickname,
+                    web_base_url=self._ctx.settings.web_base_url,
+                )
+            )
+        except Exception as exc:  # noqa: BLE001 — el correo no debe impedir el update
+            logger.warning("no se pudo enviar el email de nombramiento a %s: %s", user.id, exc)
 
 
 class SetPublicConsentUseCase:

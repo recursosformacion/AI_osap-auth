@@ -18,7 +18,12 @@ from application.use_cases.admin_users import (
 from application.use_cases.login import LoginUseCase
 from application.use_cases.register import RegisterUseCase
 from domain.entities.user import UserStatus
-from domain.exceptions import EmailTakenError, UserNotFoundError
+from domain.exceptions import (
+    EmailTakenError,
+    InvalidNicknameError,
+    NicknameTakenError,
+    UserNotFoundError,
+)
 from tests.fakes import make_context
 
 
@@ -61,6 +66,74 @@ async def test_admin_update_roles_and_status() -> None:
     )
     assert updated["roles"] == ["user", "admin"]
     assert updated["name"] == "Renombrado"
+
+
+async def test_admin_update_nickname() -> None:
+    ctx, _ = make_context()
+    created = await AdminCreateUserUseCase(ctx).execute(
+        email="u@example.com", password="s3cret-password", roles=["user"],
+        actor="admin", ip=None, user_agent=None,
+    )
+    updated = await AdminUpdateUserUseCase(ctx).execute(
+        user_id=uuid.UUID(created["user_id"]), name=None, roles=None, status=None,
+        nickname="Maestro", actor="admin", ip=None, user_agent=None,
+    )
+    assert updated["nickname"] == "Maestro"
+    user = await ctx.users.get_by_id(uuid.UUID(created["user_id"]))
+    assert user is not None and user.nickname_norm == "maestro"
+
+
+async def test_admin_update_nickname_duplicado_rejected() -> None:
+    ctx, _ = make_context()
+    a = await AdminCreateUserUseCase(ctx).execute(
+        email="a@example.com", password="s3cret-password", roles=["user"],
+        actor="admin", ip=None, user_agent=None,
+    )
+    b = await AdminCreateUserUseCase(ctx).execute(
+        email="b@example.com", password="s3cret-password", roles=["user"],
+        actor="admin", ip=None, user_agent=None,
+    )
+    await AdminUpdateUserUseCase(ctx).execute(
+        user_id=uuid.UUID(a["user_id"]), name=None, roles=None, status=None,
+        nickname="cosmos", actor="admin", ip=None, user_agent=None,
+    )
+    with pytest.raises(NicknameTakenError):
+        await AdminUpdateUserUseCase(ctx).execute(
+            user_id=uuid.UUID(b["user_id"]), name=None, roles=None, status=None,
+            nickname="Cosmos", actor="admin", ip=None, user_agent=None,
+        )
+
+
+async def test_admin_update_nickname_invalido_rejected() -> None:
+    ctx, _ = make_context()
+    created = await AdminCreateUserUseCase(ctx).execute(
+        email="u@example.com", password="s3cret-password", roles=["user"],
+        actor="admin", ip=None, user_agent=None,
+    )
+    with pytest.raises(InvalidNicknameError):
+        await AdminUpdateUserUseCase(ctx).execute(
+            user_id=uuid.UUID(created["user_id"]), name=None, roles=None, status=None,
+            nickname="x", actor="admin", ip=None, user_agent=None,
+        )
+
+
+async def test_admin_clear_nickname() -> None:
+    ctx, _ = make_context()
+    created = await AdminCreateUserUseCase(ctx).execute(
+        email="u@example.com", password="s3cret-password", roles=["user"],
+        actor="admin", ip=None, user_agent=None,
+    )
+    await AdminUpdateUserUseCase(ctx).execute(
+        user_id=uuid.UUID(created["user_id"]), name=None, roles=None, status=None,
+        nickname="temporal", actor="admin", ip=None, user_agent=None,
+    )
+    updated = await AdminUpdateUserUseCase(ctx).execute(
+        user_id=uuid.UUID(created["user_id"]), name=None, roles=None, status=None,
+        nickname="  ", actor="admin", ip=None, user_agent=None,
+    )
+    assert updated["nickname"] is None
+    user = await ctx.users.get_by_id(uuid.UUID(created["user_id"]))
+    assert user is not None and user.nickname_norm is None
 
 
 async def test_admin_deshabilitar_revoca_sesiones() -> None:
@@ -112,6 +185,40 @@ async def test_admin_delete_soft_deletes_and_revokes() -> None:
         assert s.revoked_at is not None
     # El evento user.deleted se publica (osap-api anonimiza votos).
     assert any(e["user_id"] == str(user.id) for e in ctx.events.events)
+
+
+async def test_admin_nickname_envia_aviso() -> None:
+    ctx, _ = make_context()
+    created = await AdminCreateUserUseCase(ctx).execute(
+        email="u@example.com", password="s3cret-password", roles=["user"],
+        actor="admin", ip=None, user_agent=None,
+    )
+    await AdminUpdateUserUseCase(ctx).execute(
+        user_id=uuid.UUID(created["user_id"]), name=None, roles=None, status=None,
+        nickname="Maestro", actor="admin", ip=None, user_agent=None,
+    )
+    avisos = [m for m in ctx.email_sender.sent if m.context.get("kind") == "nickname_assigned"]
+    assert len(avisos) == 1
+    assert avisos[0].to == "u@example.com"
+    assert "Maestro" in avisos[0].subject
+
+
+async def test_admin_nickname_igual_no_repite_aviso() -> None:
+    ctx, _ = make_context()
+    created = await AdminCreateUserUseCase(ctx).execute(
+        email="u@example.com", password="s3cret-password", roles=["user"],
+        actor="admin", ip=None, user_agent=None,
+    )
+    await AdminUpdateUserUseCase(ctx).execute(
+        user_id=uuid.UUID(created["user_id"]), name=None, roles=None, status=None,
+        nickname="Maestro", actor="admin", ip=None, user_agent=None,
+    )
+    antes = len(ctx.email_sender.sent)
+    await AdminUpdateUserUseCase(ctx).execute(
+        user_id=uuid.UUID(created["user_id"]), name=None, roles=None, status=None,
+        nickname="Maestro", actor="admin", ip=None, user_agent=None,
+    )
+    assert len(ctx.email_sender.sent) == antes
 
 
 async def test_admin_list_excludes_deleted() -> None:

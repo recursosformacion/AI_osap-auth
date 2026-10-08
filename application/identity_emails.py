@@ -26,6 +26,20 @@ def verification_email(
     )
 
 
+def nickname_assigned_email(*, to: str, nickname: str, web_base_url: str) -> EmailMessage:
+    body = (
+        f"Te han nombrado «{nickname}» en OpenMusicRepository.\n\n"
+        "Con este nombre aparecerás en la plataforma.\n\n"
+        f"{web_base_url.rstrip('/')}\n"
+    )
+    return EmailMessage(
+        to=to,
+        subject=f"Te han nombrado «{nickname}»",
+        body=body,
+        context={"kind": "nickname_assigned", "nickname": nickname},
+    )
+
+
 def password_reset_email(
     *, web_base_url: str, to: str, token: str, ttl_hours: float
 ) -> EmailMessage:
