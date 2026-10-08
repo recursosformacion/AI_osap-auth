@@ -10,7 +10,12 @@ from application.audit import audit
 from application.context import AuthContext
 from domain.entities.authorization_code import AuthorizationCode
 from domain.entities.oauth_client import OAuthClient
-from domain.exceptions import OAuthClientNotFoundError, OAuthError
+from domain.exceptions import (
+    OAuthClientNotFoundError,
+    OAuthError,
+    OnboardingRequiredError,
+    UnauthorizedError,
+)
 
 
 @dataclass
@@ -137,6 +142,17 @@ class CompleteAuthorizationUseCase:
     async def execute(
         self, request: AuthorizationRequest, user_id: uuid.UUID
     ) -> CompleteAuthorizationResult:
+        # Gate legal/onboarding en el flujo de autorización: sin onboarding no hay `code`
+        # (cubre tanto el login por email como el social, que pasan por aquí).
+        user = await self._ctx.users.get_by_id(user_id)
+        if user is None:
+            raise UnauthorizedError("usuario no encontrado")
+        if user.onboarding_required(
+            terms_version=self._ctx.settings.terms_version,
+            privacy_version=self._ctx.settings.privacy_version,
+        ):
+            raise OnboardingRequiredError("onboarding requerido")
+
         raw_code = self._ctx.secret_generator.generate(32)
         code = AuthorizationCode.new(
             client_id=request.client_id,

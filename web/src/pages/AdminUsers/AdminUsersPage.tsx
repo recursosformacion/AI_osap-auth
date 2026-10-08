@@ -22,12 +22,13 @@ interface Editor {
   user?: UserMe
   email?: string
   name: string
+  nickname: string
   password: string
   roles: string[]
   status: string
 }
 
-const emptyEditor: Editor = { name: '', password: '', roles: ['user'], status: 'active' }
+const emptyEditor: Editor = { name: '', nickname: '', password: '', roles: ['user'], status: 'active' }
 
 export function AdminUsersPage() {
   const [users, setUsers] = useState<UserMe[] | null>(null)
@@ -65,13 +66,21 @@ export function AdminUsersPage() {
 
   const openCreate = () => setEditor({ ...emptyEditor })
   const openEdit = (u: UserMe) =>
-    setEditor({ user: u, name: u.name ?? '', password: '', roles: [...u.roles], status: u.status })
+    setEditor({
+      user: u,
+      name: u.name ?? '',
+      nickname: u.nickname ?? '',
+      password: '',
+      roles: [...u.roles],
+      status: u.status,
+    })
 
   const save = useSubmission(async () => {
     if (!editor) return
     if (editor.user) {
       const updated = await authApi.adminUpdateUser(editor.user.user_id, {
         name: editor.name,
+        nickname: editor.nickname.trim() || null,
         roles: editor.roles,
         status: editor.status,
       })
@@ -135,6 +144,7 @@ export function AdminUsersPage() {
             <tr>
               <th>Email</th>
               <th>Nombre</th>
+              <th>Nickname</th>
               <th>Email verificado</th>
               <th>Estado</th>
               <th>Roles</th>
@@ -147,6 +157,7 @@ export function AdminUsersPage() {
               <tr key={u.user_id}>
                 <td>{u.email}</td>
                 <td>{u.name || '—'}</td>
+                <td>{u.nickname || '—'}</td>
                 <td>
                   {u.email_verified ? (
                     <span className="badge badge-ok">Sí</span>
@@ -173,7 +184,7 @@ export function AdminUsersPage() {
             ))}
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="muted">
+                <td colSpan={8} className="muted">
                   Sin resultados.
                 </td>
               </tr>
@@ -263,6 +274,14 @@ function EditorModal({
           <FormField label="Email" name="email" type="email" value={editor.email ?? ''} onChange={(v) => set({ email: v })} required />
         ) : null}
         <FormField label="Nombre" name="name" value={editor.name} onChange={(v) => set({ name: v })} />
+        {editor.user ? (
+          <FormField
+            label="Nickname"
+            name="nickname"
+            value={editor.nickname}
+            onChange={(v) => set({ nickname: v })}
+          />
+        ) : null}
         {!editor.user ? (
           <PasswordField label="Contraseña" name="password" value={editor.password} onChange={(v) => set({ password: v })} />
         ) : null}

@@ -112,7 +112,7 @@ export const authApi = {
   },
   adminUpdateUser(
     id: string,
-    input: { name?: string | null; roles?: string[]; status?: string },
+    input: { name?: string | null; nickname?: string | null; roles?: string[]; status?: string },
   ): Promise<UserMe> {
     return httpClient.patch<UserMe>(`/auth/admin/users/${id}`, input)
   },

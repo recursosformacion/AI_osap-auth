@@ -37,7 +37,19 @@ def _setup_user(app: TestClient) -> dict:
     assert app.post("/auth/verify-email", json={"token": token}).status_code == 200
     r = app.post("/auth/login", json={"email": "oidc@example.com", "password": "s3cret-password"})
     assert r.status_code == 200
-    return r.json()
+    tokens = r.json()
+    # Gate legal: el flujo de autorización exige onboarding completo.
+    r = app.post(
+        "/auth/onboarding",
+        headers={"Authorization": f"Bearer {tokens['access_token']}"},
+        json={
+            "nickname": "oidc-user",
+            "terms_version": "2026-10-01",
+            "privacy_version": "2026-10-01",
+        },
+    )
+    assert r.status_code == 200
+    return tokens
 
 
 def _login_url() -> str:

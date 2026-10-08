@@ -119,6 +119,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [clearLocal])
 
   useEffect(() => {
+    // Handoff del gate de onboarding en el flujo social: el callback redirige aquí con los
+    // tokens en el #fragment y el contexto OIDC para reanudar `authorize/complete` después.
+    const hash = window.location.hash
+    if (hash && hash.includes('access_token=')) {
+      const params = new URLSearchParams(hash.slice(1))
+      const access = params.get('access_token')
+      const refresh = params.get('refresh_token')
+      if (access) authStorage.setTokens(access, refresh ?? '')
+      if (params.get('authorize') === '1') {
+        sessionStorage.setItem(
+          'osap.pendingAuthorize',
+          JSON.stringify({
+            client_id: params.get('client_id') ?? '',
+            redirect_uri: params.get('redirect_uri') ?? '',
+            response_type: params.get('response_type') ?? 'code',
+            scope: params.get('scope') ?? 'openid profile',
+            state: params.get('state') || null,
+            nonce: params.get('nonce') || null,
+            code_challenge: params.get('code_challenge') || null,
+            code_challenge_method: params.get('code_challenge_method') || 'S256',
+          }),
+        )
+      }
+      window.history.replaceState(null, '', window.location.pathname + window.location.search)
+    }
     void restore()
   }, [restore])
 

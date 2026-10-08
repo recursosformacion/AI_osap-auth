@@ -18,8 +18,9 @@ from application.use_cases.oidc_authorize import (
     ValidateAuthorizeRequestUseCase,
 )
 from domain.entities.provider_account import ProviderAccount
+from domain.entities.session import Session
 from domain.entities.user import User, UserStatus
-from domain.exceptions import OAuthError
+from domain.exceptions import OAuthError, OnboardingRequiredError
 from domain.ports.social import SocialProvider
 from domain.util import pkce_challenge
 
@@ -167,7 +168,14 @@ class SocialLoginCallbackUseCase:
                 code_challenge_method=social_state.code_challenge_method,
                 login_url="",
             )
-            result = await CompleteAuthorizationUseCase(self._ctx).execute(request, user.id)
+            try:
+                result = await CompleteAuthorizationUseCase(self._ctx).execute(request, user.id)
+            except OnboardingRequiredError:
+                # Gate legal/onboarding: en vez del `code`, se envía al onboarding de la web
+                # de auth con sesión en el fragmento + el contexto OIDC para reanudar después.
+                return SocialCallbackResult(
+                    redirect_uri=await self._onboarding_redirect(user, request, ip, user_agent)
+                )
             url = urllib.parse.urlparse(result.redirect_uri)
             query = urllib.parse.parse_qs(url.query)
             query["code"] = [result.code]
@@ -180,6 +188,49 @@ class SocialLoginCallbackUseCase:
         # Sin contexto downstream: solo se ha creado/vincado la cuenta.
         login_url = f"{self._ctx.settings.web_base_url.rstrip('/')}/auth/login"
         return SocialCallbackResult(redirect_uri=login_url)
+
+    async def _onboarding_redirect(
+        self,
+        user: User,
+        request: AuthorizationRequest,
+        ip: str | None,
+        user_agent: str | None,
+    ) -> str:
+        """URL de onboarding con sesión (tokens en el fragmento) + contexto OIDC para reanudar."""
+        raw_refresh = self._ctx.secret_generator.generate(48)
+        session = Session.new(
+            user_id=user.id,
+            refresh_token_hash=self._ctx.token_hasher.hash(raw_refresh),
+            refresh_ttl_seconds=self._ctx.settings.refresh_token_ttl_seconds,
+            ip=ip,
+            user_agent=user_agent,
+        )
+        await self._ctx.sessions.save(session)
+        access = self._ctx.token_provider.issue_access_token(
+            user_id=user.id,
+            session_id=session.id,
+            roles=user.roles,
+            email_verified=user.email_verified,
+            scope="openid profile api:vote",
+            ttl_seconds=self._ctx.settings.access_token_ttl_seconds,
+        )
+        fragment = urllib.parse.urlencode(
+            {
+                "access_token": access,
+                "refresh_token": raw_refresh,
+                "authorize": "1",
+                "client_id": request.client_id,
+                "redirect_uri": request.redirect_uri,
+                "scope": request.scope,
+                "response_type": request.response_type or "code",
+                "state": request.state or "",
+                "nonce": request.nonce or "",
+                "code_challenge": request.code_challenge or "",
+                "code_challenge_method": request.code_challenge_method or "S256",
+            }
+        )
+        base = self._ctx.settings.web_base_url.rstrip("/")
+        return f"{base}/auth/account/onboarding#{fragment}"
 
     def _require_provider(self, provider: str) -> SocialProvider:
         social = self._ctx.social_providers.get(provider)

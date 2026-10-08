@@ -89,22 +89,42 @@ async def test_start_validates_downstream_context() -> None:
     assert url.startswith("https://provider/authorize?state=")
 
 
-@pytest.mark.asyncio
-async def test_callback_creates_user_and_completes_downstream() -> None:
-    ctx = await _make_ctx()
+async def _seed_onboarded_user(ctx) -> None:
+    from datetime import UTC, datetime
+
+    from domain.entities.user import User, UserStatus
+
+    user = User.new(
+        email_lookup=ctx.email_protector.lookup("social@example.com"),
+        email_cipher=ctx.email_protector.encrypt("social@example.com"),
+        password_hash="",
+        key_version=ctx.settings.key_version,
+    )
+    user.status = UserStatus.ACTIVE
+    user.email_verified_at = datetime.now(UTC)
+    user.nickname = "socialuser"
+    user.nickname_norm = "socialuser"
+    user.terms_version = ctx.settings.terms_version
+    user.terms_accepted_at = datetime.now(UTC)
+    user.privacy_version = ctx.settings.privacy_version
+    user.privacy_accepted_at = datetime.now(UTC)
+    user.onboarding_completed_at = datetime.now(UTC)
+    await ctx.users.save(user)
+
+
+async def _run_social_callback(ctx, state: str = "downstream-state") -> str:
     params = {
         "client_id": CLIENT_ID,
         "redirect_uri": REDIRECT,
         "response_type": "code",
         "scope": "openid profile",
-        "state": "downstream-state",
+        "state": state,
         "nonce": "n1",
         "code_challenge": "x",
         "code_challenge_method": "S256",
     }
     start = await SocialLoginStartUseCase(ctx).execute(provider="google", params=params)
     state_token = start.split("state=", 1)[1]
-
     result = await SocialLoginCallbackUseCase(ctx).execute(
         provider="google",
         code="auth-code",
@@ -112,9 +132,19 @@ async def test_callback_creates_user_and_completes_downstream() -> None:
         ip="1.2.3.4",
         user_agent="test",
     )
-    assert result.redirect_uri.startswith(REDIRECT)
-    assert "code=" in result.redirect_uri
-    assert "state=downstream-state" in result.redirect_uri
+    return result.redirect_uri
+
+
+@pytest.mark.asyncio
+async def test_callback_new_user_redirects_to_onboarding() -> None:
+    ctx = await _make_ctx()
+    redirect = await _run_social_callback(ctx)
+
+    # Gate legal: sin onboarding no se emite `code`; se envía al onboarding con sesión + contexto.
+    assert "/auth/account/onboarding#" in redirect
+    assert "authorize=1" in redirect
+    assert "access_token=" in redirect
+    assert "redirect_uri=" in redirect
 
     users = await ctx.users.list_all()
     assert len(users) == 1
@@ -122,6 +152,17 @@ async def test_callback_creates_user_and_completes_downstream() -> None:
     account = await ctx.provider_accounts.get_by_provider_sub("google", "google-123")
     assert account is not None
     assert account.user_id == users[0].id
+
+
+@pytest.mark.asyncio
+async def test_callback_completes_downstream_when_onboarded() -> None:
+    ctx = await _make_ctx()
+    await _seed_onboarded_user(ctx)
+    redirect = await _run_social_callback(ctx)
+
+    assert redirect.startswith(REDIRECT)
+    assert "code=" in redirect
+    assert "state=downstream-state" in redirect
 
 
 @pytest.mark.asyncio

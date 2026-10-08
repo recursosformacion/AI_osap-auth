@@ -20,7 +20,7 @@ from application.use_cases.oidc_authorize import (
     CompleteAuthorizationUseCase,
     ValidateAuthorizeRequestUseCase,
 )
-from domain.exceptions import OAuthClientNotFoundError, OAuthError
+from domain.exceptions import OAuthClientNotFoundError, OAuthError, OnboardingRequiredError
 
 router = APIRouter(tags=["oidc"])
 
@@ -102,7 +102,19 @@ async def authorize_complete(
         )
     except OAuthError as exc:
         return _error_json(exc)
-    result = await CompleteAuthorizationUseCase(ctx).execute(auth_request, uuid.UUID(user["sub"]))
+    try:
+        result = await CompleteAuthorizationUseCase(ctx).execute(
+            auth_request, uuid.UUID(user["sub"])
+        )
+    except OnboardingRequiredError:
+        return JSONResponse(
+            status_code=409,
+            content={
+                "error": "onboarding_required",
+                "terms_version": ctx.settings.terms_version,
+                "privacy_version": ctx.settings.privacy_version,
+            },
+        )
     return JSONResponse(
         {
             "redirect_uri": result.redirect_uri,

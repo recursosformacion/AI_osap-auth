@@ -1,15 +1,28 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import { authApi } from '../../api/authApi'
-import type { LegalCurrent } from '../../api/types'
+import type { CompleteAuthorizationInput, LegalCurrent } from '../../api/types'
 import { useAuth } from '../../auth/AuthContext'
+
+function _pendingAuthorize(): CompleteAuthorizationInput | null {
+  const raw = sessionStorage.getItem('osap.pendingAuthorize')
+  if (!raw) return null
+  try {
+    return JSON.parse(raw) as CompleteAuthorizationInput
+  } catch {
+    return null
+  }
+}
 
 // Alta/onboarding del usuario: nickname único + aceptación legal + visibilidad pública.
 // La visibilidad viene marcada por defecto (opt-out) y puede desmarcarse aquí mismo.
 export function OnboardingPage() {
   const { user, reload } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const fromState = (location.state as { authorize?: CompleteAuthorizationInput } | null)
+    ?.authorize
   const [legal, setLegal] = useState<LegalCurrent | null>(null)
   const [nickname, setNickname] = useState(user?.nickname ?? '')
   const [terms, setTerms] = useState(user?.onboarding?.terms_accepted ?? false)
@@ -40,6 +53,17 @@ export function OnboardingPage() {
         privacy_version: legal.privacy_version,
       })
       await authApi.setPublicConsent(isPublic)
+      // Si veníamos de un `authorize` en curso (email embebido o social), reanudarlo.
+      const authorize = fromState ?? _pendingAuthorize()
+      sessionStorage.removeItem('osap.pendingAuthorize')
+      if (authorize) {
+        const res = await authApi.completeAuthorization(authorize)
+        const url = new URL(res.redirect_uri)
+        url.searchParams.set('code', res.code)
+        if (res.state) url.searchParams.set('state', res.state)
+        window.location.replace(url.toString())
+        return
+      }
       await reload()
       navigate('/auth/account')
     } catch {

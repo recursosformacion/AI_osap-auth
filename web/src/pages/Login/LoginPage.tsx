@@ -100,6 +100,15 @@ export function LoginPage() {
       }
       setFieldError(null)
       await login(email, password)
+      const me = await authApi.getMe()
+      if (me.onboarding?.required) {
+        // Gate legal en el flujo de autorización: completar onboarding antes de emitir el code.
+        navigate('/auth/account/onboarding', {
+          state: oidc ? { authorize: oidc } : undefined,
+          replace: true,
+        })
+        return
+      }
       if (oidc) {
         const res = await authApi.completeAuthorization(oidc)
         const url = new URL(res.redirect_uri)

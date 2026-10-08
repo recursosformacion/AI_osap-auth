@@ -127,6 +127,16 @@ class LegalVersionOutdatedError(DomainError):
     status_code = 409
 
 
+class OnboardingRequiredError(DomainError):
+    """El usuario debe completar el onboarding (nickname + ToS/privacidad) para continuar.
+
+    Se lanza en el flujo de autorización OIDC (emisión del `code`): no se emite el `code`
+    hasta que el onboarding esté completo, cubriendo email y login social.
+    """
+
+    status_code = 409
+
+
 class ServiceClientNotFoundError(DomainError):
     """Client_id o client_secret de servicio inválidos."""
 

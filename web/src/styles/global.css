@@ -17,6 +17,9 @@
   --radius-sm: 8px;
   --shadow: 0 10px 30px rgba(30, 41, 59, 0.08);
   --font: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+
+  /* Textura de partitura (SVG con notación real) para el FONDO. */
+  --score-tile: url("/score.svg");
 }
 
 * {
@@ -48,13 +51,17 @@ body {
   background:
     radial-gradient(1200px 600px at 20% -10%, rgba(79, 70, 229, 0.12), transparent 60%),
     radial-gradient(1000px 500px at 100% 110%, rgba(22, 163, 74, 0.08), transparent 60%),
+    var(--score-tile) 0 0 / 400px 150px repeat,
     var(--color-bg);
 }
 
 .auth-card {
+  position: relative;
   width: 100%;
   max-width: 420px;
-  background: var(--color-surface);
+  background: rgba(255, 255, 255, 0.78);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
@@ -352,8 +359,15 @@ body {
 }
 
 /* ---- Área de cuenta ---- */
+.app-shell {
+  min-height: 100vh;
+  background:
+    var(--score-tile) 0 0 / 400px 150px repeat,
+    var(--color-bg);
+}
+
 .app-nav {
-  background: var(--color-surface);
+  background: transparent;
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -374,11 +388,27 @@ body {
 }
 
 .panel {
-  background: var(--color-surface);
+  background: rgba(255, 255, 255, 0.82);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   padding: 24px;
   margin-bottom: 20px;
+}
+
+@media print {
+  .auth-card,
+  .panel {
+    background: var(--color-surface);
+  }
+}
+
+@media (forced-colors: active) {
+  .auth-card,
+  .panel {
+    background-image: none;
+  }
 }
 
 .panel-title {

@@ -177,5 +177,6 @@ class AdminCreateUserRequest(BaseModel):
 
 class AdminUpdateUserRequest(BaseModel):
     name: str | None = None
+    nickname: str | None = None
     roles: list[str] | None = None
     status: str | None = None

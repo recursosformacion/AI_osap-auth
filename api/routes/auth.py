@@ -412,7 +412,8 @@ async def admin_update_user(
     ua: str | None = Depends(client_user_agent),
 ) -> UserMeResponse:
     result = await AdminUpdateUserUseCase(ctx).execute(
-        user_id=uuid.UUID(user_id), name=body.name, roles=body.roles, status=body.status,
+        user_id=uuid.UUID(user_id), name=body.name, nickname=body.nickname,
+        roles=body.roles, status=body.status,
         actor=user["sub"], ip=ip, user_agent=ua,
     )
     return UserMeResponse(**result)

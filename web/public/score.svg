@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="150" viewBox="0 0 400 150">
+  <g fill="none" stroke="#4f46e5" stroke-width="1.2" opacity="0.14">
+    <path d="M0 40h400M0 50h400M0 60h400M0 70h400M0 80h400"/>
+    <path d="M0 36v48" stroke-width="1.6"/>
+    <path d="M200 36v48" stroke-width="1.6"/>
+  </g>
+  <g fill="#4f46e5" opacity="0.14"
+     font-family="'Segoe UI Symbol','Noto Music','Segoe UI',sans-serif" font-size="40">
+    <text x="16" y="82">&#x2669;</text>
+    <text x="52" y="82">&#x266A;</text>
+    <text x="88" y="82">&#x266B;</text>
+    <text x="132" y="82">&#x266C;</text>
+    <text x="176" y="82">&#x2669;</text>
+    <text x="228" y="82">&#x266D;</text>
+    <text x="258" y="82">&#x266F;</text>
+    <text x="290" y="82">&#x2669;</text>
+    <text x="326" y="82">&#x266A;</text>
+    <text x="362" y="82">&#x266B;</text>
+  </g>
+</svg>
