@@ -187,6 +187,26 @@ async def test_admin_delete_soft_deletes_and_revokes() -> None:
     assert any(e["user_id"] == str(user.id) for e in ctx.events.events)
 
 
+async def test_admin_notify_recognition_envia_email() -> None:
+    from application.use_cases.notify_recognition import NotifyRecognitionUseCase
+
+    ctx, _ = make_context()
+    created = await AdminCreateUserUseCase(ctx).execute(
+        email="u@example.com", password="s3cret-password", roles=["user"],
+        actor="admin", ip=None, user_agent=None,
+    )
+    await NotifyRecognitionUseCase(ctx).execute(
+        user_id=uuid.UUID(created["user_id"]),
+        recognition_type="founder",
+        action="granted",
+        project="omr",
+    )
+    avisos = [m for m in ctx.email_sender.sent if m.context.get("kind") == "recognition"]
+    assert len(avisos) == 1
+    assert avisos[0].to == "u@example.com"
+    assert "founder" in avisos[0].subject
+
+
 async def test_admin_nickname_envia_aviso() -> None:
     ctx, _ = make_context()
     created = await AdminCreateUserUseCase(ctx).execute(

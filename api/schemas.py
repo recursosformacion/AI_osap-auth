@@ -180,3 +180,9 @@ class AdminUpdateUserRequest(BaseModel):
     nickname: str | None = None
     roles: list[str] | None = None
     status: str | None = None
+
+
+class NotifyRecognitionRequest(BaseModel):
+    recognition_type: str
+    action: str = "granted"
+    project: str = "omr"

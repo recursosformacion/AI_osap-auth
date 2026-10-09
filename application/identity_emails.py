@@ -40,6 +40,31 @@ def nickname_assigned_email(*, to: str, nickname: str, web_base_url: str) -> Ema
     )
 
 
+def recognition_email(
+    *, to: str, recognition_type: str, action: str, project: str, web_base_url: str
+) -> EmailMessage:
+    if action == "revoked":
+        subject = f"Reconocimiento retirado: {recognition_type}"
+        lead = (
+            f"Tu reconocimiento «{recognition_type}» en {project} ha sido retirado.\n\n"
+        )
+    else:
+        subject = f"Te han concedido un reconocimiento: {recognition_type}"
+        lead = f"Te han concedido el reconocimiento «{recognition_type}» en {project}.\n\n"
+    body = f"{lead}Puedes verlo en tu cuenta:\n{web_base_url.rstrip('/')}\n"
+    return EmailMessage(
+        to=to,
+        subject=subject,
+        body=body,
+        context={
+            "kind": "recognition",
+            "recognition_type": recognition_type,
+            "action": action,
+            "project": project,
+        },
+    )
+
+
 def password_reset_email(
     *, web_base_url: str, to: str, token: str, ttl_hours: float
 ) -> EmailMessage:

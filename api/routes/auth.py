@@ -23,6 +23,7 @@ from api.schemas import (
     LegalCurrentResponse,
     LoginRequest,
     LoginResponse,
+    NotifyRecognitionRequest,
     OnboardingRequest,
     PublicConsentRequest,
     RefreshRequest,
@@ -51,6 +52,7 @@ from application.use_cases.me import (
     ConfirmChangeEmailUseCase,
     GetMeUseCase,
 )
+from application.use_cases.notify_recognition import NotifyRecognitionUseCase
 from application.use_cases.onboarding import (
     CompleteOnboardingUseCase,
     GetLegalCurrentUseCase,
@@ -417,6 +419,22 @@ async def admin_update_user(
         actor=user["sub"], ip=ip, user_agent=ua,
     )
     return UserMeResponse(**result)
+
+
+@router.post("/admin/users/{user_id}/recognition-notification", status_code=200)
+async def admin_notify_recognition(
+    user_id: str,
+    body: NotifyRecognitionRequest,
+    ctx: AuthContext = Depends(get_ctx),
+    user: dict = Depends(require_role("admin")),
+) -> JSONResponse:
+    await NotifyRecognitionUseCase(ctx).execute(
+        user_id=uuid.UUID(user_id),
+        recognition_type=body.recognition_type,
+        action=body.action,
+        project=body.project,
+    )
+    return JSONResponse(status_code=200, content={"status": "ok"})
 
 
 @router.delete("/admin/users/{user_id}", status_code=200)
