@@ -157,8 +157,8 @@ class Settings:
         # Versiones legales vigentes (las que exige el onboarding) y rutas de los documentos.
         self.terms_version: str = "2026-10-01"
         self.privacy_version: str = "2026-10-01"
-        self.terms_url: str = "/terms"
-        self.privacy_url: str = "/privacy"
+    self.terms_url: str = "https://app.openmusicrepository.com/aviso-legal"
+    self.privacy_url: str = "https://app.openmusicrepository.com/privacidad"
         self.authorization_code_ttl_seconds: int = 300
         self.cors_origins: list[str] = []
         # SMTP para correos transaccionales (verificación / reset). Vacío = sin envío real
