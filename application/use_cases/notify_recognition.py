@@ -38,7 +38,6 @@ class NotifyRecognitionUseCase:
                     recognition_type=recognition_type,
                     action=action,
                     project=project,
-                    web_base_url=self._ctx.settings.web_base_url,
                 )
             )
         except Exception as exc:  # noqa: BLE001 — el aviso no debe romper la operación

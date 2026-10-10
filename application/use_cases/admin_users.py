@@ -155,7 +155,6 @@ class AdminUpdateUserUseCase:
                 nickname_assigned_email(
                     to=email,
                     nickname=nickname,
-                    web_base_url=self._ctx.settings.web_base_url,
                 )
             )
         except Exception as exc:  # noqa: BLE001 — el correo no debe impedir el update

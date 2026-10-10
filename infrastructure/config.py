@@ -154,6 +154,9 @@ class Settings:
         self.public_base_url: str = "http://127.0.0.1:8200"
         self.public_path_prefix: str = ""
         self.web_base_url: str = "http://127.0.0.1:5173"
+        # Base con la que se FIRMA el pie de los correos (la plataforma/app, no el dominio
+        # técnico de auth). P. ej. https://app.openmusicrepository.com.
+        self.site_base_url: str = "https://app.openmusicrepository.com"
         # Versiones legales vigentes (las que exige el onboarding) y rutas de los documentos.
         self.terms_version: str = "2026-10-01"
         self.privacy_version: str = "2026-10-01"
@@ -215,6 +218,7 @@ class Settings:
         self.public_base_url = data.get("public_base_url", self.public_base_url)
         self.public_path_prefix = data.get("public_path_prefix", self.public_path_prefix)
         self.web_base_url = data.get("web_base_url", self.web_base_url)
+        self.site_base_url = data.get("site_base_url", self.site_base_url)
         self.authorization_code_ttl_seconds = int(
             data.get("authorization_code_ttl_seconds", self.authorization_code_ttl_seconds)
         )

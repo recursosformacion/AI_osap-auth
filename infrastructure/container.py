@@ -74,6 +74,8 @@ def build_email_sender(settings: Settings) -> EmailSender:
                 "(smtp.host / OSAP_AUTH_SMTP_HOST); FakeEmailSender no es válido en producción"
             )
         return FakeEmailSender()
+    site = (settings.site_base_url or "").rstrip("/")
+    signature = f"\n\n—\nOpenMusicRepository\n{site}\n" if site else ""
     return SmtpEmailSender(
         SmtpSettings(
             host=settings.smtp_host,
@@ -83,6 +85,7 @@ def build_email_sender(settings: Settings) -> EmailSender:
             from_address=settings.smtp_from_address,
             use_ssl=settings.smtp_use_ssl,
             use_starttls=settings.smtp_use_starttls,
+            signature=signature,
         )
     )
 

@@ -26,11 +26,10 @@ def verification_email(
     )
 
 
-def nickname_assigned_email(*, to: str, nickname: str, web_base_url: str) -> EmailMessage:
+def nickname_assigned_email(*, to: str, nickname: str) -> EmailMessage:
     body = (
         f"Te han nombrado «{nickname}» en OpenMusicRepository.\n\n"
-        "Con este nombre aparecerás en la plataforma.\n\n"
-        f"{web_base_url.rstrip('/')}\n"
+        "Con este nombre aparecerás en la plataforma.\n"
     )
     return EmailMessage(
         to=to,
@@ -41,7 +40,7 @@ def nickname_assigned_email(*, to: str, nickname: str, web_base_url: str) -> Ema
 
 
 def recognition_email(
-    *, to: str, recognition_type: str, action: str, project: str, web_base_url: str
+    *, to: str, recognition_type: str, action: str, project: str
 ) -> EmailMessage:
     if action == "revoked":
         subject = f"Reconocimiento retirado: {recognition_type}"
@@ -51,7 +50,7 @@ def recognition_email(
     else:
         subject = f"Te han concedido un reconocimiento: {recognition_type}"
         lead = f"Te han concedido el reconocimiento «{recognition_type}» en {project}.\n\n"
-    body = f"{lead}Puedes verlo en tu cuenta:\n{web_base_url.rstrip('/')}\n"
+    body = f"{lead}Puedes verlo en tu cuenta.\n"
     return EmailMessage(
         to=to,
         subject=subject,

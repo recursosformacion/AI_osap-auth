@@ -32,6 +32,9 @@ class SmtpSettings:
     use_ssl: bool = True
     use_starttls: bool = False
     timeout_seconds: float = 15.0
+    # Pie de firma común a TODOS los correos (plataforma/app). Ej.
+    # "\n\n—\nOpenMusicRepository\nhttps://app.openmusicrepository.com\n".
+    signature: str = ""
 
 
 class SmtpEmailSender(EmailSender):
@@ -45,7 +48,7 @@ class SmtpEmailSender(EmailSender):
         email["From"] = self._settings.from_address
         email["To"] = message.to
         email["Subject"] = message.subject
-        email.set_content(message.body)
+        email.set_content(message.body + self._settings.signature)
         try:
             with self._connect() as smtp:
                 smtp.ehlo()
