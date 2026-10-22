@@ -15,6 +15,23 @@ function _pendingAuthorize(): CompleteAuthorizationInput | null {
   }
 }
 
+// El nickname es un handle ASCII (3-30, empieza por letra, termina en letra/número).
+// Se ofrece el nombre como propuesta, no como valor inmutable: el usuario puede editarlo.
+function proposeNickname(name: string | null | undefined): string {
+  if (!name) return ''
+  const ascii = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+  let handle = ascii
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 30)
+  handle = handle.replace(/^[^a-z]+/, '').replace(/[^a-z0-9]+$/g, '')
+  return handle.length >= 3 ? handle : ''
+}
+
 // Alta/onboarding del usuario: nickname único + aceptación legal + visibilidad pública.
 // La visibilidad viene marcada por defecto (opt-out) y puede desmarcarse aquí mismo.
 export function OnboardingPage() {
@@ -24,7 +41,9 @@ export function OnboardingPage() {
   const fromState = (location.state as { authorize?: CompleteAuthorizationInput } | null)
     ?.authorize
   const [legal, setLegal] = useState<LegalCurrent | null>(null)
-  const [nickname, setNickname] = useState(user?.nickname ?? '')
+  const [nickname, setNickname] = useState(
+    user?.nickname ?? proposeNickname(user?.name),
+  )
   const [terms, setTerms] = useState(user?.onboarding?.terms_accepted ?? false)
   const [privacy, setPrivacy] = useState(user?.onboarding?.privacy_accepted ?? false)
   const [isPublic, setIsPublic] = useState(user?.nickname_public_consent ?? true)
@@ -40,6 +59,12 @@ export function OnboardingPage() {
       }
     })()
   }, [])
+
+  // `user` se carga de forma asíncrona: rellenar la propuesta cuando llegue, sin pisar
+  // lo que el usuario ya haya escrito.
+  useEffect(() => {
+    setNickname((current) => current || user?.nickname || proposeNickname(user?.name))
+  }, [user?.nickname, user?.name])
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
