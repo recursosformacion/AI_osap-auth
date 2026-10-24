@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "osap-auth"
-version = "5.7.1"
+version = "5.7.2"
 description = "Servicio de identidad y autenticacion para OSAP (Auth API v1.0)."
 requires-python = ">=3.11"
 dependencies = [
@@ -58,5 +58,6 @@ python_version = "3.11"
 plugins = ["pydantic.mypy"]
 ignore_missing_imports = true
 warn_unused_configs = true
+
 
 
