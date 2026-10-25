@@ -53,6 +53,7 @@ class AuthSettingsView:
     privacy_version: str
     terms_url: str
     privacy_url: str
+    allowed_return_origins: list[str] = field(default_factory=list)
 
     @property
     def effective_issuer(self) -> str:

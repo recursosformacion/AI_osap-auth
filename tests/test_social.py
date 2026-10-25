@@ -252,3 +252,20 @@ async def test_borrado_de_cuenta_limpia_provider_accounts() -> None:
     await DeleteAccountUseCase(ctx).execute(user_id=user.id, ip=None, user_agent=None)
 
     assert await ctx.provider_accounts.get_by_provider_sub("google", "google-123") is None
+
+@pytest.mark.asyncio
+async def test_callback_returns_to_authorized_url_with_tokens() -> None:
+    ctx = await _make_ctx()
+    ctx.settings.allowed_return_origins = ["https://videos.openmusicrepository.com"]
+    start = await SocialLoginStartUseCase(ctx).execute(
+        provider="google",
+        params={"return_to": "https://videos.openmusicrepository.com/works/index-1"},
+    )
+    state_token = start.split("state=", 1)[1]
+    result = await SocialLoginCallbackUseCase(ctx).execute(
+        provider="google", code="c", state_token=state_token, ip=None, user_agent=None
+    )
+    assert result.redirect_uri.startswith(
+        "https://videos.openmusicrepository.com/works/index-1#"
+    )
+    assert "access_token=" in result.redirect_uri

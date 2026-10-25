@@ -164,6 +164,12 @@ class Settings:
         self.privacy_url: str = "https://app.openmusicrepository.com/privacidad"
         self.authorization_code_ttl_seconds: int = 300
         self.cors_origins: list[str] = []
+        self.allowed_return_origins: list[str] = [
+            "https://app.openmusicrepository.com",
+            "https://videos.openmusicrepository.com",
+            "http://localhost:8400",
+            "http://osap-app",
+        ]
         # SMTP para correos transaccionales (verificación / reset). Vacío = sin envío real
         # (dev/test usa FakeEmailSender; producción exige host + from).
         self.smtp_host: str = os.environ.get("OSAP_AUTH_SMTP_HOST", "")
@@ -232,6 +238,11 @@ class Settings:
         if isinstance(origins, str):
             origins = [o.strip() for o in origins.split(",") if o.strip()]
         self.cors_origins = list(origins)
+
+        return_origins = data.get("return_origins", self.allowed_return_origins)
+        if isinstance(return_origins, str):
+            return_origins = [o.strip() for o in return_origins.split(",") if o.strip()]
+        self.allowed_return_origins = list(return_origins)
 
         audiences = data.get("allowed_token_audiences", self.allowed_token_audiences)
         if isinstance(audiences, str):

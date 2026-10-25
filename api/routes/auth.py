@@ -74,6 +74,16 @@ from domain.exceptions import UnauthorizedError
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+@router.get("/return-to/validate")
+async def validate_return_to(
+    return_to: str,
+    ctx: AuthContext = Depends(get_ctx),
+) -> dict[str, bool]:
+    from domain.return_urls import is_allowed_return_url
+
+    return {"allowed": is_allowed_return_url(return_to, ctx.settings.allowed_return_origins)}
+
+
 @router.post("/register", response_model=RegisterResponse, status_code=201)
 async def register(
     body: RegisterRequest,

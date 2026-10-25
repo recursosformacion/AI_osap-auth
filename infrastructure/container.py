@@ -62,6 +62,7 @@ def build_settings_view(settings: Settings) -> AuthSettingsView:
         privacy_version=settings.privacy_version,
         terms_url=settings.terms_url,
         privacy_url=settings.privacy_url,
+        allowed_return_origins=settings.allowed_return_origins,
     )
 
 

@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-do
 
 import { authApi } from '../../api/authApi'
 import { getBaseUrl } from '../../api/httpClient'
+import { authStorage } from '../../auth/authStorage'
 import { useAuth } from '../../auth/AuthContext'
 import { AuthLayout } from '../../components/AuthLayout'
 import { ErrorMessage } from '../../components/ErrorMessage'
@@ -62,9 +63,10 @@ export function LoginPage() {
         }
       : null
 
-  const [mode, setMode] = useState<Mode>('login')
+  const [mode, setMode] = useState<Mode>(searchParams.get("mode") === "register" ? "register" : "login")
   const [fieldError, setFieldError] = useState<string | null>(null)
   const [socialProviders, setSocialProviders] = useState<string[]>([])
+  const [returnTo, setReturnTo] = useState<string | null>(null)
 
   // Login
   const [email, setEmail] = useState('')
@@ -75,6 +77,15 @@ export function LoginPage() {
   const [regEmail, setRegEmail] = useState('')
   const [regPassword, setRegPassword] = useState('')
   const [regConfirm, setRegConfirm] = useState('')
+
+  useEffect(() => {
+    const requested = searchParams.get("return_to");
+    if (!requested) return;
+    authApi
+      .validateReturnTo(requested)
+      .then((res) => { if (res.allowed) setReturnTo(requested); })
+      .catch(() => {});
+  }, [searchParams]);
 
   useEffect(() => {
     authApi
@@ -115,6 +126,15 @@ export function LoginPage() {
         url.searchParams.set('code', res.code)
         if (res.state) url.searchParams.set('state', res.state)
         window.location.replace(url.toString())
+        return
+      }
+      if (returnTo) {
+        const target = new URL(returnTo)
+        target.hash = new URLSearchParams({
+          access_token: authStorage.getAccessToken() ?? '',
+          refresh_token: authStorage.getRefreshToken() ?? '',
+        }).toString()
+        window.location.replace(target.toString())
         return
       }
       navigate(from, { replace: true })
@@ -214,7 +234,7 @@ export function LoginPage() {
                 <a
                   key={provider}
                   className="btn btn-outline"
-                  href={`${apiBase}/auth/oauth/${provider}${socialQuery}`}
+                  href={`${apiBase}/auth/oauth/${provider}${socialQuery}${returnTo ? `&return_to=${encodeURIComponent(returnTo)}` : ""}`}
                 >
                   {SOCIAL_LABELS[provider] ?? `Continuar con ${provider}`}
                 </a>

@@ -21,6 +21,7 @@ from domain.entities.provider_account import ProviderAccount
 from domain.entities.session import Session
 from domain.entities.user import User, UserStatus
 from domain.exceptions import OAuthError, OnboardingRequiredError
+from domain.return_urls import is_allowed_return_url
 from domain.ports.social import SocialProvider
 from domain.util import pkce_challenge
 
@@ -39,6 +40,7 @@ class SocialState:
     code_challenge: str | None
     code_challenge_method: str | None
     code_verifier: str
+    return_to: str | None
     exp: float
 
 
@@ -69,6 +71,7 @@ def decode_social_state(secret: str, token: str) -> SocialState | None:
             code_challenge=payload.get("code_challenge"),
             code_challenge_method=payload.get("code_challenge_method", "S256"),
             code_verifier=payload.get("code_verifier", ""),
+            return_to=payload.get("return_to"),
             exp=float(payload.get("exp", 0)),
         )
     except (ValueError, KeyError, TypeError, json.JSONDecodeError):
@@ -98,6 +101,8 @@ class SocialLoginStartUseCase:
                 "code_challenge": validated.code_challenge,
                 "code_challenge_method": validated.code_challenge_method,
             }
+        elif is_allowed_return_url(params.get("return_to"), getattr(self._ctx.settings, "allowed_return_origins", [])):
+            context = {"return_to": params["return_to"]}
 
         verifier = self._ctx.secret_generator.generate(48)
         challenge = pkce_challenge(verifier)
@@ -186,13 +191,17 @@ class SocialLoginCallbackUseCase:
             return SocialCallbackResult(redirect_uri=urllib.parse.urlunparse(parts))
 
         # Sin contexto downstream: se ha creado/vinculado la cuenta. Entregamos la sesión
-        # a la SPA de auth para que el login social directo no vuelva al formulario.
+        # al return_to autorizado (o a la cuenta de auth si no hay return_to).
         access, raw_refresh = await self._create_session(user, ip, user_agent)
         fragment = urllib.parse.urlencode(
             {"access_token": access, "refresh_token": raw_refresh}
         )
         base = self._ctx.settings.web_base_url.rstrip("/")
-        return SocialCallbackResult(redirect_uri=f"{base}/auth/account#{fragment}")
+        target = social_state.return_to
+        if not is_allowed_return_url(target, getattr(self._ctx.settings, "allowed_return_origins", [])):
+            target = f"{base}/auth/account"
+        separator = "&" if "#" in target else "#"
+        return SocialCallbackResult(redirect_uri=f"{target}{separator}{fragment}")
 
     async def _create_session(
         self, user: User, ip: str | None, user_agent: str | None

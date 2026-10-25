@@ -32,6 +32,11 @@ export const authApi = {
   resendVerification(email: string): Promise<MessageResponse> {
     return httpClient.post<MessageResponse>('/auth/resend-verification', { email })
   },
+  validateReturnTo(returnTo: string): Promise<{ allowed: boolean }> {
+    return httpClient.get<{ allowed: boolean }>(
+      `/auth/return-to/validate?return_to=${encodeURIComponent(returnTo)}`,
+    )
+  },
   login(email: string, password: string): Promise<LoginResponse> {
     return httpClient.post<LoginResponse>('/auth/login', { email, password })
   },
