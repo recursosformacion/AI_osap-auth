@@ -185,18 +185,18 @@ class SocialLoginCallbackUseCase:
             parts[4] = urllib.parse.urlencode(query, doseq=True)
             return SocialCallbackResult(redirect_uri=urllib.parse.urlunparse(parts))
 
-        # Sin contexto downstream: solo se ha creado/vincado la cuenta.
-        login_url = f"{self._ctx.settings.web_base_url.rstrip('/')}/auth/login"
-        return SocialCallbackResult(redirect_uri=login_url)
+        # Sin contexto downstream: se ha creado/vinculado la cuenta. Entregamos la sesión
+        # a la SPA de auth para que el login social directo no vuelva al formulario.
+        access, raw_refresh = await self._create_session(user, ip, user_agent)
+        fragment = urllib.parse.urlencode(
+            {"access_token": access, "refresh_token": raw_refresh}
+        )
+        base = self._ctx.settings.web_base_url.rstrip("/")
+        return SocialCallbackResult(redirect_uri=f"{base}/auth/account#{fragment}")
 
-    async def _onboarding_redirect(
-        self,
-        user: User,
-        request: AuthorizationRequest,
-        ip: str | None,
-        user_agent: str | None,
-    ) -> str:
-        """URL de onboarding con sesión (tokens en el fragmento) + contexto OIDC para reanudar."""
+    async def _create_session(
+        self, user: User, ip: str | None, user_agent: str | None
+    ) -> tuple[str, str]:
         raw_refresh = self._ctx.secret_generator.generate(48)
         session = Session.new(
             user_id=user.id,
@@ -214,6 +214,17 @@ class SocialLoginCallbackUseCase:
             scope="openid profile api:vote",
             ttl_seconds=self._ctx.settings.access_token_ttl_seconds,
         )
+        return access, raw_refresh
+
+    async def _onboarding_redirect(
+        self,
+        user: User,
+        request: AuthorizationRequest,
+        ip: str | None,
+        user_agent: str | None,
+    ) -> str:
+        """URL de onboarding con sesión (tokens en el fragmento) + contexto OIDC para reanudar."""
+        access, raw_refresh = await self._create_session(user, ip, user_agent)
         fragment = urllib.parse.urlencode(
             {
                 "access_token": access,

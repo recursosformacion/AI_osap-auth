@@ -190,14 +190,17 @@ async def test_callback_links_existing_user() -> None:
 
 
 @pytest.mark.asyncio
-async def test_callback_without_downstream_redirects_to_login() -> None:
+async def test_callback_without_downstream_redirects_to_account_with_session() -> None:
     ctx = await _make_ctx()
     start = await SocialLoginStartUseCase(ctx).execute(provider="google", params={})
     state_token = start.split("state=", 1)[1]
     result = await SocialLoginCallbackUseCase(ctx).execute(
         provider="google", code="c", state_token=state_token, ip=None, user_agent=None
     )
-    assert result.redirect_uri.endswith("/auth/login")
+    assert "/auth/account#" in result.redirect_uri
+    fragment = result.redirect_uri.split("#", 1)[1]
+    assert "access_token=" in fragment
+    assert "refresh_token=" in fragment
     assert len(await ctx.users.list_all()) == 1
 
 
