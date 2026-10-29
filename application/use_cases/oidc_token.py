@@ -137,7 +137,6 @@ class ExchangeAuthorizationCodeUseCase:
             # usuario que entraba por Google recibía 403 "Admin role required".
             audience=None,
             nonce=nonce,
-            issuer=self._ctx.settings.effective_issuer,
         )
 
 
@@ -203,7 +202,6 @@ class RefreshTokenGrantUseCase:
             ttl_seconds=self._ctx.settings.access_token_ttl_seconds,
             # Igual que el login normal: audiencia global (osap-api), no el client_id.
             audience=None,
-            issuer=self._ctx.settings.effective_issuer,
         )
         await audit(
             self._ctx,
