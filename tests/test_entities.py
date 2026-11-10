@@ -33,6 +33,8 @@ def _onboard(
     entity_id: str | None = None,
     entity_name: str | None = None,
     entity_kind: str | None = None,
+    entity_email: str | None = None,
+    send_email: bool = True,
 ) -> object:
     payload: dict[str, object] = {
         "nickname": nickname,
@@ -45,13 +47,23 @@ def _onboard(
         payload["entity_name"] = entity_name
     if entity_kind is not None:
         payload["entity_kind"] = entity_kind
+    if entity_name is not None and send_email:
+        payload["entity_email"] = entity_email or f"{nickname}@entidad.example"
     return app.post("/auth/onboarding", json=payload, headers=_auth(token))
 
 
 def _create_entity(
     app: TestClient, token: str, name: str = "Coral Aurora", nickname: str = "gestor"
 ) -> dict[str, object]:
-    r = _onboard(app, token, nickname, entity_name=name, entity_kind="coral")
+    slug = name.lower().replace(" ", "-").replace("ó", "o").replace("í", "i")
+    r = _onboard(
+        app,
+        token,
+        nickname,
+        entity_name=name,
+        entity_kind="coral",
+        entity_email=f"{slug}@entidad.example",
+    )
     assert r.status_code == 200, r.text
     return r.json()["memberships"][0]
 
@@ -257,8 +269,62 @@ def test_duplicate_entity_name_is_409(app: TestClient) -> None:
 
 def test_invalid_entity_kind_is_422(app: TestClient) -> None:
     token = _login(app, "badkind@example.com")
-    r = _onboard(app, token, "malo", entity_name="Coral X", entity_kind="banda")
+    r = _onboard(app, token, "malo", entity_name="Coral X", entity_kind="desconocido")
     assert r.status_code == 422
+
+
+def test_new_entity_kinds_are_accepted(app: TestClient) -> None:
+    token = _login(app, "banda@example.com")
+    r = _onboard(app, token, "banda", entity_name="Banda Municipal", entity_kind="banda")
+    assert r.status_code == 200, r.text
+    assert r.json()["memberships"][0]["entity_kind"] == "banda"
+
+
+def test_entity_email_is_required_and_validated(app: TestClient) -> None:
+    token = _login(app, "bademail@example.com")
+    r = _onboard(app, token, "sinmail", entity_name="Coral Sin Correo", send_email=False)
+    assert r.status_code == 422
+
+    r = _onboard(
+        app,
+        token,
+        "sinmail",
+        entity_name="Coral Sin Correo",
+        entity_email="no-es-un-correo",
+    )
+    assert r.status_code == 422
+
+
+def test_entity_email_must_be_unique(app: TestClient) -> None:
+    first = _login(app, "mailone@example.com")
+    r = _onboard(
+        app,
+        first,
+        "uno",
+        entity_name="Coral Uno",
+        entity_kind="coral",
+        entity_email="contacto@coral.example",
+    )
+    assert r.status_code == 200, r.text
+
+    second = _login(app, "mailtwo@example.com")
+    r = _onboard(
+        app,
+        second,
+        "dos",
+        entity_name="Coral Dos",
+        entity_kind="coral",
+        entity_email="contacto@coral.example",
+    )
+    assert r.status_code == 409
+
+
+def test_list_entities_does_not_expose_email(app: TestClient) -> None:
+    token = _login(app, "privacy@example.com")
+    _create_entity(app, token, "Coral Privada")
+    r = app.get("/auth/entities", headers=_auth(token))
+    assert r.status_code == 200, r.text
+    assert set(r.json()[0]) == {"id", "name", "kind"}
 
 
 def test_entity_name_and_membership_conflict_is_422(app: TestClient) -> None:

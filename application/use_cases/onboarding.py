@@ -52,6 +52,7 @@ class CompleteOnboardingUseCase:
         entity_id: str | None = None,
         entity_name: str | None = None,
         entity_kind: str | None = None,
+        entity_email: str | None = None,
         phone: str | None = None,
     ) -> dict[str, object]:
         settings = self._ctx.settings
@@ -78,6 +79,7 @@ class CompleteOnboardingUseCase:
             entity_id=entity_id,
             entity_name=entity_name,
             entity_kind=entity_kind,
+            entity_email=entity_email,
             ip=ip,
             user_agent=user_agent,
         )

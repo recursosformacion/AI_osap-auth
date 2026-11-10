@@ -14,6 +14,10 @@ const KIND_LABELS: Record<EntityKind, string> = {
   coral: 'Coral',
   orquesta: 'Orquesta',
   grupo: 'Grupo',
+  banda: 'Banda',
+  ensemble: 'Ensemble',
+  escuela: 'Escuela / Conservatorio',
+  iglesia: 'Iglesia',
 }
 
 const STATUS_LABELS: Record<MembershipStatus, string> = {
@@ -37,6 +41,7 @@ export function EntityPage() {
   const [managedEntityId, setManagedEntityId] = useState('')
   const [name, setName] = useState('')
   const [kind, setKind] = useState<EntityKind>('coral')
+  const [email, setEmail] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -81,9 +86,11 @@ export function EntityPage() {
     if (selected) {
       setName(selected.entity_name)
       setKind(selected.entity_kind)
+      setEmail(selected.entity_email ?? '')
     } else {
       setName('')
       setKind('coral')
+      setEmail('')
     }
   }
 
@@ -114,6 +121,10 @@ export function EntityPage() {
       setError('Indica el nombre de la entidad que representas.')
       return
     }
+    if (!email.trim()) {
+      setError('Indica el correo de contacto de la entidad.')
+      return
+    }
     void run(
       () =>
         authApi.updateMyEntity({
@@ -121,6 +132,7 @@ export function EntityPage() {
           entity_id: managedEntityId || undefined,
           entity_name: name.trim(),
           entity_kind: kind,
+          entity_email: email.trim(),
         }),
       managedEntityId
         ? 'Entidad actualizada.'
@@ -138,6 +150,7 @@ export function EntityPage() {
               <li key={membership.id}>
                 <strong>{membership.entity_name}</strong> ({kindLabel(membership.entity_kind)}) —{' '}
                 {STATUS_LABELS[membership.status]}
+                {membership.entity_email ? ` · ${membership.entity_email}` : ''}
                 {membership.is_representative ? ' · la representas' : ''}{' '}
                 {membership.status !== 'rejected' ? (
                   <button
@@ -228,6 +241,20 @@ export function EntityPage() {
             </option>
           ))}
         </select>
+        <label htmlFor="entity-email" className="muted">Correo de contacto de la entidad</label>
+        <input
+          id="entity-email"
+          type="email"
+          value={email}
+          disabled={saving}
+          maxLength={254}
+          placeholder="contacto@entidad.example"
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <p className="muted">
+          Se guarda con el creador como responsable. El envío y la verificación por enlace se
+          decidirán en una entrega posterior.
+        </p>
         <div className="row" style={{ marginTop: '0.75rem' }}>
           <button className="btn btn-primary btn-sm" disabled={saving} onClick={represent}>
             {managedEntityId ? 'Actualizar entidad' : 'Crear entidad'}

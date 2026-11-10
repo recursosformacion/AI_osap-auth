@@ -17,6 +17,10 @@ class EntityKind(StrEnum):
     CORAL = "coral"
     ORQUESTA = "orquesta"
     GRUPO = "grupo"
+    BANDA = "banda"
+    ENSEMBLE = "ensemble"
+    ESCUELA = "escuela"
+    IGLESIA = "iglesia"
 
 
 @dataclass
@@ -30,6 +34,7 @@ class Entity:
     created_by: uuid.UUID | None
     created_at: datetime
     updated_at: datetime
+    email: str | None = None
 
     def touch(self) -> None:
         self.updated_at = datetime.now(UTC)
@@ -42,6 +47,7 @@ class Entity:
         name_norm: str,
         kind: EntityKind,
         created_by: uuid.UUID | None,
+        email: str | None = None,
     ) -> Entity:
         now = datetime.now(UTC)
         return cls(
@@ -52,4 +58,5 @@ class Entity:
             created_by=created_by,
             created_at=now,
             updated_at=now,
+            email=email,
         )

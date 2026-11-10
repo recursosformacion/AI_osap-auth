@@ -266,6 +266,7 @@ async def complete_onboarding(
         entity_id=body.entity_id,
         entity_name=body.entity_name,
         entity_kind=body.entity_kind,
+        entity_email=body.entity_email,
         phone=body.phone,
         ip=ip,
         user_agent=ua,
@@ -307,6 +308,7 @@ async def update_my_entity(
         entity_id=body.entity_id,
         entity_name=body.entity_name,
         entity_kind=body.entity_kind,
+        entity_email=body.entity_email,
         ip=ip,
         user_agent=ua,
     )

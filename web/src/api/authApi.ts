@@ -77,6 +77,7 @@ export const authApi = {
     entity_id?: string
     entity_name?: string
     entity_kind?: EntityKind
+    entity_email?: string
     phone?: string
   }): Promise<UserMe> {
     return httpClient.post<UserMe>('/auth/onboarding', input)
@@ -92,6 +93,7 @@ export const authApi = {
     entity_id?: string
     entity_name?: string
     entity_kind?: EntityKind
+    entity_email?: string
   }): Promise<UserMe> {
     return httpClient.put<UserMe>('/auth/me/entity', input)
   },

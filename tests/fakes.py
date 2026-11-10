@@ -249,6 +249,12 @@ class FakeEntityRepository(EntityRepository):
                 return entity
         return None
 
+    async def get_by_email(self, email: str) -> Entity | None:
+        for entity in self._entities.values():
+            if entity.email == email:
+                return entity
+        return None
+
     async def list_all(self) -> list[Entity]:
         return sorted(self._entities.values(), key=lambda entity: entity.name)
 

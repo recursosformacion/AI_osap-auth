@@ -100,6 +100,7 @@ class UpdateMyEntityUseCase:
         entity_id: str | None,
         entity_name: str | None,
         entity_kind: str | None,
+        entity_email: str | None,
         ip: str | None,
         user_agent: str | None,
     ) -> dict[str, Any]:
@@ -126,6 +127,7 @@ class UpdateMyEntityUseCase:
                 entity_id=entity_id,
                 name=entity_name,
                 kind=entity_kind,
+                email=entity_email,
                 ip=ip,
                 user_agent=user_agent,
             )

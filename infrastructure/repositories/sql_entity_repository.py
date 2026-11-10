@@ -25,6 +25,7 @@ def _from_row(row: dict[str, Any]) -> Entity:
         created_by=uuid.UUID(created_by) if created_by else None,
         created_at=row["created_at"],
         updated_at=row["updated_at"],
+        email=row.get("email"),
     )
 
 
@@ -44,6 +45,12 @@ class SqlEntityRepository(EntityRepository):
             row = await cur.fetchone()
         return _from_row(row) if row else None
 
+    async def get_by_email(self, email: str) -> Entity | None:
+        async with cursor(self._pool) as cur:
+            await cur.execute("SELECT * FROM entities WHERE email=%s", (email,))
+            row = await cur.fetchone()
+        return _from_row(row) if row else None
+
     async def list_all(self) -> list[Entity]:
         async with cursor(self._pool) as cur:
             await cur.execute("SELECT * FROM entities ORDER BY name")
@@ -57,12 +64,13 @@ class SqlEntityRepository(EntityRepository):
                 await cur.execute(
                     """
                     INSERT INTO entities
-                      (id, name, name_norm, kind, created_by, created_at, updated_at)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s)
+                      (id, name, name_norm, kind, created_by, created_at, updated_at, email)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
                     ON DUPLICATE KEY UPDATE
                       name=VALUES(name),
                       name_norm=VALUES(name_norm),
                       kind=VALUES(kind),
+                      email=VALUES(email),
                       updated_at=VALUES(updated_at)
                     """,
                     (
@@ -73,9 +81,12 @@ class SqlEntityRepository(EntityRepository):
                         str(entity.created_by) if entity.created_by else None,
                         entity.created_at or now,
                         entity.updated_at or now,
+                        entity.email,
                     ),
                 )
         except pymysql.err.IntegrityError as exc:
             if "uq_entities_name_norm" in str(exc):
                 raise EntityTakenError("nombre de entidad no disponible") from exc
+            if "uq_entities_email" in str(exc):
+                raise EntityTakenError("correo de entidad no disponible") from exc
             raise

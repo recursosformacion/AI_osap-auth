@@ -18,6 +18,9 @@ class EntityRepository(ABC):
     async def get_by_name_norm(self, name_norm: str) -> Entity | None: ...
 
     @abstractmethod
+    async def get_by_email(self, email: str) -> Entity | None: ...
+
+    @abstractmethod
     async def list_all(self) -> list[Entity]:
         """Listado estable por nombre para el selector de alta/perfil."""
 

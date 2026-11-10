@@ -24,7 +24,7 @@ from domain.exceptions import (
     MembershipNotFoundError,
 )
 from domain.ports.email import EmailMessage
-from domain.services.entity import clean_name, normalize_name, validate_kind
+from domain.services.entity import clean_name, normalize_name, validate_email, validate_kind
 
 
 def _parse_uuid(value: str) -> uuid.UUID:
@@ -63,6 +63,7 @@ async def membership_infos(ctx: AuthContext, user: User) -> list[dict[str, Any]]
                 "entity_id": str(entity.id),
                 "entity_name": entity.name,
                 "entity_kind": entity.kind.value,
+                "entity_email": entity.email,
                 "status": membership.status.value,
                 "is_representative": entity.created_by == user.id,
                 "requested_at": membership.requested_at.isoformat(),
@@ -80,6 +81,7 @@ async def create_entity(
     user: User,
     name: str,
     kind: str,
+    email: str,
     ip: str | None,
     user_agent: str | None,
 ) -> Entity:
@@ -88,11 +90,15 @@ async def create_entity(
     norm = normalize_name(cleaned)
     if await ctx.entities.get_by_name_norm(norm) is not None:
         raise EntityTakenError("nombre de entidad no disponible")
+    clean_email = validate_email(email)
+    if await ctx.entities.get_by_email(clean_email) is not None:
+        raise EntityTakenError("correo de entidad no disponible")
     entity = Entity.new(
         name=cleaned,
         name_norm=norm,
         kind=validate_kind(kind),
         created_by=user.id,
+        email=clean_email,
     )
     await ctx.entities.save(entity)
     membership = EntityMembership.new(
@@ -229,6 +235,7 @@ async def represent_entity(
     entity_id: str | None,
     name: str | None,
     kind: str | None,
+    email: str | None,
     ip: str | None,
     user_agent: str | None,
 ) -> Entity:
@@ -249,6 +256,12 @@ async def represent_entity(
             entity.name_norm = norm
         if kind is not None:
             entity.kind = validate_kind(kind)
+        if email is not None:
+            clean_email = validate_email(email)
+            existing = await ctx.entities.get_by_email(clean_email)
+            if existing is not None and existing.id != entity.id:
+                raise EntityTakenError("correo de entidad no disponible")
+            entity.email = clean_email
         entity.touch()
         await ctx.entities.save(entity)
         await audit(
@@ -263,9 +276,19 @@ async def represent_entity(
         )
         return entity
 
-    if not name or not kind:
-        raise InvalidEntityError("indica el nombre y el tipo de la entidad que representas")
-    return await create_entity(ctx, user=user, name=name, kind=kind, ip=ip, user_agent=user_agent)
+    if not name or not kind or not email:
+        raise InvalidEntityError(
+            "indica el nombre, el tipo y el correo de la entidad que representas"
+        )
+    return await create_entity(
+        ctx,
+        user=user,
+        name=name,
+        kind=kind,
+        email=email,
+        ip=ip,
+        user_agent=user_agent,
+    )
 
 
 async def apply_onboarding_entity(
@@ -275,6 +298,7 @@ async def apply_onboarding_entity(
     entity_id: str | None,
     entity_name: str | None,
     entity_kind: str | None,
+    entity_email: str | None,
     ip: str | None,
     user_agent: str | None,
 ) -> None:
@@ -283,7 +307,13 @@ async def apply_onboarding_entity(
         raise InvalidEntityError("elige representar una entidad nueva o pertenecer a una existente")
     if entity_name:
         await create_entity(
-            ctx, user=user, name=entity_name, kind=entity_kind or "", ip=ip, user_agent=user_agent
+            ctx,
+            user=user,
+            name=entity_name,
+            kind=entity_kind or "",
+            email=entity_email or "",
+            ip=ip,
+            user_agent=user_agent,
         )
         return
     if entity_id:

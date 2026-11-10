@@ -15,6 +15,7 @@ ENTITY_KINDS: frozenset[str] = frozenset(kind.value for kind in EntityKind)
 
 MAX_NAME_LENGTH = 120
 MIN_NAME_LENGTH = 2
+MAX_EMAIL_LENGTH = 254
 
 
 def clean_name(name: str) -> str:
@@ -36,3 +37,26 @@ def validate_kind(kind: str) -> EntityKind:
     if cleaned not in ENTITY_KINDS:
         raise InvalidEntityError("tipo de entidad inválido")
     return EntityKind(cleaned)
+
+
+def validate_email(email: str) -> str:
+    """Correo de contacto de la entidad en minúsculas y con formato comprobado.
+
+    No envía correo ni marca el dominio: la verificación por enlace queda para una
+    entrega posterior, cuando se decida si se escribe al grupo.
+    """
+    cleaned = email.strip().casefold()
+    if not cleaned or len(cleaned) > MAX_EMAIL_LENGTH:
+        raise InvalidEntityError("correo de entidad inválido")
+    local, separator, domain = cleaned.partition("@")
+    if (
+        not separator
+        or not local
+        or not domain
+        or "." not in domain
+        or any(character.isspace() for character in cleaned)
+        or domain.startswith(".")
+        or domain.endswith(".")
+    ):
+        raise InvalidEntityError("correo de entidad inválido")
+    return cleaned

@@ -14,6 +14,10 @@ const KIND_LABELS: Record<EntityKind, string> = {
   coral: 'Coral',
   orquesta: 'Orquesta',
   grupo: 'Grupo',
+  banda: 'Banda',
+  ensemble: 'Ensemble',
+  escuela: 'Escuela / Conservatorio',
+  iglesia: 'Iglesia',
 }
 
 function _pendingAuthorize(): CompleteAuthorizationInput | null {
@@ -64,6 +68,7 @@ export function OnboardingPage() {
   const [representsEntity, setRepresentsEntity] = useState(false)
   const [entityName, setEntityName] = useState('')
   const [entityKind, setEntityKind] = useState<EntityKind>('coral')
+  const [entityEmail, setEntityEmail] = useState('')
   const [memberEntityId, setMemberEntityId] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -100,6 +105,10 @@ export function OnboardingPage() {
       setError('Indica el nombre de la entidad que representas.')
       return
     }
+    if (representsEntity && !entityEmail.trim()) {
+      setError('Indica el correo de contacto de la entidad.')
+      return
+    }
     setSaving(true)
     setError(null)
     try {
@@ -109,7 +118,11 @@ export function OnboardingPage() {
         privacy_version: legal.privacy_version,
         phone: phone.trim() || undefined,
         ...(representsEntity
-          ? { entity_name: entityName.trim(), entity_kind: entityKind }
+          ? {
+              entity_name: entityName.trim(),
+              entity_kind: entityKind,
+              entity_email: entityEmail.trim(),
+            }
           : memberEntityId
             ? { entity_id: memberEntityId }
             : {}),
@@ -203,8 +216,21 @@ export function OnboardingPage() {
               </option>
             ))}
           </select>
+          <label htmlFor="onboarding-entity-email" className="muted">
+            Correo de contacto de la entidad
+          </label>
+          <input
+            id="onboarding-entity-email"
+            type="email"
+            value={entityEmail}
+            onChange={(e) => setEntityEmail(e.target.value)}
+            maxLength={254}
+            placeholder="contacto@entidad.example"
+            required
+          />
           <p className="muted">
-            Este nombre será el que se ofrezca a futuros usuarios para agruparse.
+            Este nombre será el que se ofrezca a futuros usuarios para agruparse. El correo
+            queda guardado con el creador como responsable.
           </p>
         </>
       )}

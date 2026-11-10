@@ -121,6 +121,7 @@ class MembershipInfo(BaseModel):
     entity_id: str
     entity_name: str
     entity_kind: str
+    entity_email: str | None = None
     status: str
     is_representative: bool
     requested_at: str
@@ -182,6 +183,7 @@ class OnboardingRequest(BaseModel):
     entity_id: str | None = None
     entity_name: str | None = Field(default=None, max_length=120)
     entity_kind: str | None = Field(default=None, max_length=32)
+    entity_email: str | None = Field(default=None, max_length=254)
     phone: str | None = Field(default=None, max_length=32)
 
 
@@ -204,6 +206,7 @@ class UpdateMyEntityRequest(BaseModel):
     entity_id: str | None = None
     entity_name: str | None = Field(default=None, max_length=120)
     entity_kind: str | None = Field(default=None, max_length=32)
+    entity_email: str | None = Field(default=None, max_length=254)
 
 
 class LegalCurrentResponse(BaseModel):
