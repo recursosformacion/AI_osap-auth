@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 from application.audit import audit
 from application.context import AuthContext
+from application.use_cases.entity_helpers import apply_onboarding_entity
 from application.use_cases.me import GetMeUseCase
 from domain.exceptions import (
     LegalVersionOutdatedError,
@@ -14,6 +15,7 @@ from domain.exceptions import (
     UnauthorizedError,
 )
 from domain.services.nickname import validate as validate_nickname
+from domain.services.phone import normalize as normalize_phone
 
 
 class GetLegalCurrentUseCase:
@@ -47,6 +49,10 @@ class CompleteOnboardingUseCase:
         privacy_version: str,
         ip: str | None,
         user_agent: str | None,
+        entity_id: str | None = None,
+        entity_name: str | None = None,
+        entity_kind: str | None = None,
+        phone: str | None = None,
     ) -> dict[str, object]:
         settings = self._ctx.settings
         if terms_version != settings.terms_version or privacy_version != settings.privacy_version:
@@ -61,9 +67,26 @@ class CompleteOnboardingUseCase:
         if await self._ctx.users.nickname_norm_exists(norm, exclude_user_id=user.id):
             raise NicknameTakenError("nickname no disponible")
 
+        normalized_phone: str | None = None
+        if phone is not None:
+            cleaned_phone = phone.strip()
+            normalized_phone = normalize_phone(cleaned_phone) if cleaned_phone else None
+
+        await apply_onboarding_entity(
+            self._ctx,
+            user=user,
+            entity_id=entity_id,
+            entity_name=entity_name,
+            entity_kind=entity_kind,
+            ip=ip,
+            user_agent=user_agent,
+        )
+
         now = datetime.now(UTC)
         user.nickname = nickname.strip()
         user.nickname_norm = norm
+        if phone is not None:
+            user.phone = normalized_phone
         user.terms_version = settings.terms_version
         user.terms_accepted_at = now
         user.privacy_version = settings.privacy_version

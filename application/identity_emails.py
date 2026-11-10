@@ -79,3 +79,57 @@ def password_reset_email(
         body=body,
         context={"kind": "reset_password", "link": link},
     )
+
+
+def membership_request_email(
+    *, web_base_url: str, to: str, entity_name: str, nickname: str
+) -> EmailMessage:
+    link = f"{web_base_url.rstrip('/')}/auth/account/entity-requests"
+    body = (
+        f"«{nickname}» solicita incorporarse a la entidad «{entity_name}» en OSAP.\n\n"
+        f"Revisa la solicitud y apruébala o recházala en:\n{link}\n\n"
+        "Hasta que la apruebes, la persona no se considera miembro de la entidad."
+    )
+    return EmailMessage(
+        to=to,
+        subject=f"Solicitud de incorporación a {entity_name}",
+        body=body,
+        context={
+            "kind": "membership_request",
+            "entity_name": entity_name,
+            "nickname": nickname,
+            "link": link,
+        },
+    )
+
+
+def membership_approved_email(
+    *, web_base_url: str, to: str, entity_name: str
+) -> EmailMessage:
+    link = f"{web_base_url.rstrip('/')}/auth/account/entity"
+    body = (
+        f"Tu incorporación a la entidad «{entity_name}» ha sido aprobada.\n\n"
+        f"Ya eres miembro y puedes verlo en tu cuenta:\n{link}\n"
+    )
+    return EmailMessage(
+        to=to,
+        subject=f"Incorporación aprobada: {entity_name}",
+        body=body,
+        context={"kind": "membership_approved", "entity_name": entity_name, "link": link},
+    )
+
+
+def membership_rejected_email(
+    *, web_base_url: str, to: str, entity_name: str
+) -> EmailMessage:
+    link = f"{web_base_url.rstrip('/')}/auth/account/entity"
+    body = (
+        f"Tu solicitud de incorporación a la entidad «{entity_name}» ha sido rechazada.\n\n"
+        f"Puedes consultar el estado en tu cuenta:\n{link}\n"
+    )
+    return EmailMessage(
+        to=to,
+        subject=f"Incorporación rechazada: {entity_name}",
+        body=body,
+        context={"kind": "membership_rejected", "entity_name": entity_name, "link": link},
+    )

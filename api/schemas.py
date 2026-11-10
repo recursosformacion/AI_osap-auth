@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -45,9 +47,10 @@ class ChangePasswordRequest(BaseModel):
 
 
 class UpdateMeRequest(BaseModel):
-    """Nombre local del usuario (el de OIDC/Google es solo el valor inicial)."""
+    """Nombre y nickname del propio usuario (el de OIDC/Google es solo el valor inicial)."""
 
     name: str = Field(min_length=1, max_length=100)
+    nickname: str | None = Field(default=None, min_length=3, max_length=30)
 
 
 class ChangeEmailRequest(BaseModel):
@@ -111,25 +114,96 @@ class OnboardingState(BaseModel):
     privacy_version_current: str
 
 
+class MembershipInfo(BaseModel):
+    """Pertenencia del usuario a una entidad, con su estado de aprobación."""
+
+    id: str
+    entity_id: str
+    entity_name: str
+    entity_kind: str
+    status: str
+    is_representative: bool
+    requested_at: str
+    decided_at: str | None = None
+
+
+class EntityListItem(BaseModel):
+    """Entidad dada de alta, ofrecida en el alta y en la ficha del usuario."""
+
+    id: str
+    name: str
+    kind: str
+
+
+class EntityRequestInfo(BaseModel):
+    """Solicitud de incorporación pendiente, para el gestor de la entidad."""
+
+    id: str
+    entity_id: str
+    entity_name: str
+    entity_kind: str
+    user_id: str
+    nickname: str | None = None
+    name: str | None = None
+    requested_at: str
+
+
+class DecideEntityRequest(BaseModel):
+    """Decisión del gestor sobre una solicitud de incorporación."""
+
+    action: Literal["approve", "reject"]
+
+
 class UserMeResponse(BaseModel):
     user_id: str
     email: str
     name: str | None = None
     nickname: str | None = None
+    phone: str | None = None
     roles: list[str]
     email_verified: bool
     status: str
     created_at: str | None = None
     onboarding: OnboardingState | None = None
     nickname_public_consent: bool = False
+    memberships: list[MembershipInfo] = Field(default_factory=list)
 
 
 class OnboardingRequest(BaseModel):
-    """Completa el onboarding: handle único + aceptación de las versiones legales vigentes."""
+    """Completa el onboarding: handle único + aceptación de las versiones legales vigentes.
+
+    Opcionalmente, el usuario indica si representa una entidad (nombre + tipo) o si
+    pertenece a una entidad ya registrada (`entity_id`).
+    """
 
     nickname: str = Field(min_length=3, max_length=30)
     terms_version: str
     privacy_version: str
+    entity_id: str | None = None
+    entity_name: str | None = Field(default=None, max_length=120)
+    entity_kind: str | None = Field(default=None, max_length=32)
+    phone: str | None = Field(default=None, max_length=32)
+
+
+class UpdatePhoneRequest(BaseModel):
+    """Teléfono voluntario para comunicaciones por WhatsApp (`null` o vacío lo borra)."""
+
+    phone: str | None = Field(default=None, max_length=32)
+
+
+class UpdateMyEntityRequest(BaseModel):
+    """Cambio de entidad desde la ficha del usuario.
+
+    - `join`: solicitar pertenecer a `entity_id` (queda pendiente de aprobación).
+    - `leave`: dejar de pertenecer a `entity_id`.
+    - `represent`: crear una entidad (`entity_name` + `entity_kind`) o actualizar una
+      que ya gestiona (`entity_id` + nombre/tipo).
+    """
+
+    action: Literal["join", "leave", "represent"]
+    entity_id: str | None = None
+    entity_name: str | None = Field(default=None, max_length=120)
+    entity_kind: str | None = Field(default=None, max_length=32)
 
 
 class LegalCurrentResponse(BaseModel):
@@ -178,6 +252,7 @@ class AdminCreateUserRequest(BaseModel):
 class AdminUpdateUserRequest(BaseModel):
     name: str | None = None
     nickname: str | None = None
+    phone: str | None = None
     roles: list[str] | None = None
     status: str | None = None
 

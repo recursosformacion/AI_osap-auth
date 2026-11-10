@@ -10,26 +10,30 @@ from typing import Any
 from application.audit import audit
 from application.context import AuthContext
 from application.identity_emails import nickname_assigned_email
+from application.use_cases.entity_helpers import membership_infos
 from domain.entities.user import ALL_ROLES, User, UserStatus
 from domain.exceptions import EmailTakenError, NicknameTakenError, UserNotFoundError
 from domain.services.email_utils import normalize_email, validate_password
 from domain.services.nickname import validate as validate_nickname
+from domain.services.phone import normalize as normalize_phone
 
 logger = logging.getLogger(__name__)
 
 
-def public_user(ctx: AuthContext, user: User) -> dict[str, Any]:
+async def public_user(ctx: AuthContext, user: User) -> dict[str, Any]:
     email = ctx.email_protector.decrypt(user.email_cipher) if user.email_cipher else ""
     return {
         "user_id": str(user.id),
         "email": email,
         "name": user.name,
         "nickname": user.nickname,
+        "phone": user.phone,
         "roles": user.roles,
         "email_verified": user.email_verified,
         "status": user.status.value,
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "nickname_public_consent": user.nickname_public_consent,
+        "memberships": await membership_infos(ctx, user),
     }
 
 
@@ -46,8 +50,11 @@ class AdminListUsersUseCase:
         self._ctx = ctx
 
     async def execute(self) -> list[dict[str, Any]]:
-        return [public_user(self._ctx, u) for u in await self._ctx.users.list_all()
-                if u.status != UserStatus.DELETED]
+        result: list[dict[str, Any]] = []
+        for user in await self._ctx.users.list_all():
+            if user.status != UserStatus.DELETED:
+                result.append(await public_user(self._ctx, user))
+        return result
 
 
 class AdminGetUserUseCase:
@@ -58,7 +65,7 @@ class AdminGetUserUseCase:
         user = await self._ctx.users.get_by_id(user_id)
         if user is None or user.status == UserStatus.DELETED:
             raise UserNotFoundError("usuario no encontrado")
-        return public_user(self._ctx, user)
+        return await public_user(self._ctx, user)
 
 
 class AdminCreateUserUseCase:
@@ -96,7 +103,7 @@ class AdminCreateUserUseCase:
             subject=str(user.id), ip=ip, user_agent=user_agent, outcome="success",
             context={"roles": roles},
         )
-        return public_user(self._ctx, user)
+        return await public_user(self._ctx, user)
 
 
 class AdminUpdateUserUseCase:
@@ -106,7 +113,7 @@ class AdminUpdateUserUseCase:
     async def execute(
         self, *, user_id: uuid.UUID, name: str | None, roles: list[str] | None,
         status: str | None, actor: str, ip: str | None, user_agent: str | None,
-        nickname: str | None = None,
+        nickname: str | None = None, phone: str | None = None,
     ) -> dict[str, Any]:
         user = await self._ctx.users.get_by_id(user_id)
         if user is None or user.status == UserStatus.DELETED:
@@ -115,6 +122,9 @@ class AdminUpdateUserUseCase:
         previous_nickname = user.nickname
         if name is not None:
             user.name = name.strip() or None
+        if phone is not None:
+            cleaned_phone = phone.strip()
+            user.phone = normalize_phone(cleaned_phone) if cleaned_phone else None
         if nickname is not None:
             cleaned = nickname.strip()
             if not cleaned:
@@ -142,7 +152,7 @@ class AdminUpdateUserUseCase:
         )
         if nickname is not None and user.nickname and user.nickname != previous_nickname:
             self._send_nickname_email(user, user.nickname)
-        return public_user(self._ctx, user)
+        return await public_user(self._ctx, user)
 
     def _send_nickname_email(self, user: User, nickname: str) -> None:
         """Avisa al usuario de que le han nombrado; un fallo de correo no rompe el update."""
@@ -186,7 +196,7 @@ class SetPublicConsentUseCase:
             subject=str(user.id), ip=ip, user_agent=user_agent, outcome="success",
             context={"value": bool(value), "by": "admin" if admin else "user"},
         )
-        return public_user(self._ctx, user)
+        return await public_user(self._ctx, user)
 
 
 class AdminDeleteUserUseCase:

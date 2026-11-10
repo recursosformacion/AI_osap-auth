@@ -38,6 +38,7 @@ class User:
         email_verified_at: datetime | None = None,
         nickname: str | None = None,
         nickname_norm: str | None = None,
+        phone: str | None = None,
         terms_version: str | None = None,
         terms_accepted_at: datetime | None = None,
         privacy_version: str | None = None,
@@ -59,6 +60,7 @@ class User:
         self.email_verified_at = email_verified_at
         self.nickname = nickname
         self.nickname_norm = nickname_norm
+        self.phone = phone
         self.terms_version = terms_version
         self.terms_accepted_at = terms_accepted_at
         self.privacy_version = privacy_version

@@ -12,6 +12,8 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from application.context import AuthContext, AuthSettingsView
 from domain.entities.audit_event import AuditEvent
 from domain.entities.authorization_code import AuthorizationCode
+from domain.entities.entity import Entity
+from domain.entities.entity_membership import EntityMembership
 from domain.entities.oauth_client import OAuthClient
 from domain.entities.provider_account import ProviderAccount
 from domain.entities.service_client import ServiceClient
@@ -20,6 +22,8 @@ from domain.entities.token_record import TokenPurpose, TokenRecord
 from domain.entities.user import User, UserStatus
 from domain.ports.audit_repository import AuditRepository
 from domain.ports.authorization_code_repository import AuthorizationCodeRepository
+from domain.ports.entity_membership_repository import EntityMembershipRepository
+from domain.ports.entity_repository import EntityRepository
 from domain.ports.oauth_client_repository import OAuthClientRepository
 from domain.ports.provider_account_repository import ProviderAccountRepository
 from domain.ports.service_client_repository import ServiceClientRepository
@@ -232,6 +236,73 @@ class FakeProviderAccountRepository(ProviderAccountRepository):
         }
 
 
+class FakeEntityRepository(EntityRepository):
+    def __init__(self) -> None:
+        self._entities: dict[str, Entity] = {}
+
+    async def get_by_id(self, entity_id: uuid.UUID) -> Entity | None:
+        return self._entities.get(str(entity_id))
+
+    async def get_by_name_norm(self, name_norm: str) -> Entity | None:
+        for entity in self._entities.values():
+            if entity.name_norm == name_norm:
+                return entity
+        return None
+
+    async def list_all(self) -> list[Entity]:
+        return sorted(self._entities.values(), key=lambda entity: entity.name)
+
+    async def save(self, entity: Entity) -> None:
+        self._entities[str(entity.id)] = entity
+
+
+class FakeEntityMembershipRepository(EntityMembershipRepository):
+    def __init__(self, entities: FakeEntityRepository | None = None) -> None:
+        self._items: dict[str, EntityMembership] = {}
+        self._entities = entities or FakeEntityRepository()
+
+    async def get_by_id(self, membership_id: uuid.UUID) -> EntityMembership | None:
+        return self._items.get(str(membership_id))
+
+    async def get(
+        self, entity_id: uuid.UUID, user_id: uuid.UUID
+    ) -> EntityMembership | None:
+        for membership in self._items.values():
+            if membership.entity_id == entity_id and membership.user_id == user_id:
+                return membership
+        return None
+
+    async def list_for_user(self, user_id: uuid.UUID) -> list[EntityMembership]:
+        return sorted(
+            (m for m in self._items.values() if m.user_id == user_id),
+            key=lambda m: m.requested_at,
+            reverse=True,
+        )
+
+    async def list_for_entity(self, entity_id: uuid.UUID) -> list[EntityMembership]:
+        return [m for m in self._items.values() if m.entity_id == entity_id]
+
+    async def list_pending_for_manager(
+        self, manager_id: uuid.UUID
+    ) -> list[EntityMembership]:
+        pending: list[EntityMembership] = []
+        for membership in self._items.values():
+            entity = await self._entities.get_by_id(membership.entity_id)
+            if (
+                entity is not None
+                and entity.created_by == manager_id
+                and membership.status.value == "pending"
+            ):
+                pending.append(membership)
+        return sorted(pending, key=lambda m: m.requested_at)
+
+    async def save(self, membership: EntityMembership) -> None:
+        self._items[str(membership.id)] = membership
+
+    async def delete(self, membership_id: uuid.UUID) -> None:
+        self._items.pop(str(membership_id), None)
+
+
 class FakeAuditRepository(AuditRepository):
     def __init__(self) -> None:
         self._events: list[AuditEvent] = []
@@ -291,6 +362,8 @@ def make_context(
     oauth_clients: FakeOAuthClientRepository | None = None,
     authorization_codes: FakeAuthorizationCodeRepository | None = None,
     provider_accounts: FakeProviderAccountRepository | None = None,
+    entities: FakeEntityRepository | None = None,
+    entity_memberships: FakeEntityMembershipRepository | None = None,
     audit: FakeAuditRepository | None = None,
     social_providers: dict[str, object] | None = None,
 ) -> tuple[AuthContext, list[object]]:
@@ -306,6 +379,8 @@ def make_context(
         aead_key_b64=base64.urlsafe_b64encode(b"0" * 32).decode(),
         pepper="test-pepper",
     )
+    entities_repo = entities or FakeEntityRepository()
+    memberships_repo = entity_memberships or FakeEntityMembershipRepository(entities_repo)
     ctx = AuthContext(
         users=users or FakeUserRepository(),
         sessions=sessions or FakeSessionRepository(),
@@ -314,6 +389,8 @@ def make_context(
         oauth_clients=oauth_clients or FakeOAuthClientRepository(),
         authorization_codes=authorization_codes or FakeAuthorizationCodeRepository(),
         provider_accounts=provider_accounts or FakeProviderAccountRepository(),
+        entities=entities_repo,
+        entity_memberships=memberships_repo,
         audit=audit or FakeAuditRepository(),
         rate_limiter=MemoryRateLimiter(),
         password_hasher=Argon2PasswordHasher(),

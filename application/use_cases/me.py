@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 from application.audit import audit
 from application.context import AuthContext
+from application.use_cases.entity_helpers import membership_infos
 from domain.entities.token_record import TokenPurpose, TokenRecord
 from domain.exceptions import InvalidCredentialsError, InvalidTokenError, UnauthorizedError
 from domain.services.email_utils import normalize_email, validate_password
+from domain.services.phone import normalize as normalize_phone
 
 
 class GetMeUseCase:
@@ -26,6 +29,7 @@ class GetMeUseCase:
             "email": email,
             "name": user.name,
             "nickname": user.nickname,
+            "phone": user.phone,
             "roles": user.roles,
             "email_verified": user.email_verified,
             "status": user.status.value,
@@ -49,7 +53,42 @@ class GetMeUseCase:
                 "terms_version_current": settings.terms_version,
                 "privacy_version_current": settings.privacy_version,
             },
+            "memberships": await membership_infos(self._ctx, user),
         }
+
+
+class UpdateMyPhoneUseCase:
+    """El usuario añade, cambia o borra su teléfono voluntario (WhatsApp)."""
+
+    def __init__(self, ctx: AuthContext) -> None:
+        self._ctx = ctx
+
+    async def execute(
+        self,
+        *,
+        user_id: uuid.UUID,
+        phone: str | None,
+        ip: str | None,
+        user_agent: str | None,
+    ) -> dict[str, Any]:
+        user = await self._ctx.users.get_by_id(user_id)
+        if user is None:
+            raise UnauthorizedError("usuario no encontrado")
+        cleaned = (phone or "").strip()
+        user.phone = normalize_phone(cleaned) if cleaned else None
+        user.touch()
+        await self._ctx.users.save(user)
+        await audit(
+            self._ctx,
+            event_type="user.phone.changed",
+            actor=str(user.id),
+            subject=str(user.id),
+            ip=ip,
+            user_agent=user_agent,
+            outcome="success",
+            context={"set": user.phone is not None},
+        )
+        return await GetMeUseCase(self._ctx).execute(user_id=user.id)
 
 
 class ChangePasswordUseCase:

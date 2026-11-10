@@ -3,7 +3,10 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { AccountLayout } from './components/AccountLayout'
 import { AccountPage } from './pages/Account/AccountPage'
 import { AdminUsersPage } from './pages/AdminUsers/AdminUsersPage'
+import { EntityPage } from './pages/Account/EntityPage'
+import { EntityRequestsPage } from './pages/Account/EntityRequestsPage'
 import { OnboardingPage } from './pages/Account/OnboardingPage'
+import { PhonePage } from './pages/Account/PhonePage'
 import { PrivacyPage } from './pages/Account/PrivacyPage'
 import { ChangeEmailPage } from './pages/ChangeEmail/ChangeEmailPage'
 import { ChangePasswordPage } from './pages/ChangePassword/ChangePasswordPage'
@@ -42,6 +45,9 @@ export function App() {
       >
         <Route index element={<AccountPage />} />
         <Route path="onboarding" element={<OnboardingPage />} />
+        <Route path="entity" element={<EntityPage />} />
+        <Route path="entity-requests" element={<EntityRequestsPage />} />
+        <Route path="phone" element={<PhonePage />} />
         <Route path="privacy" element={<PrivacyPage />} />
         <Route path="sessions" element={<SessionsPage />} />
         <Route path="password" element={<ChangePasswordPage />} />

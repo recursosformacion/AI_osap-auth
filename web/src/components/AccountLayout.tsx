@@ -23,6 +23,12 @@ export function AccountLayout({ children }: { children?: ReactNode }) {
           <NavLink to="/auth/account" end className="nav-link">
             Cuenta
           </NavLink>
+          <NavLink to="/auth/account/entity" className="nav-link">
+            Entidad
+          </NavLink>
+          <NavLink to="/auth/account/entity-requests" className="nav-link">
+            Solicitudes
+          </NavLink>
           <NavLink to="/auth/account/sessions" className="nav-link">
             Sesiones
           </NavLink>

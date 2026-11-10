@@ -21,6 +21,10 @@ from infrastructure.repositories.sql_audit_repository import SqlAuditRepository
 from infrastructure.repositories.sql_authorization_code_repository import (
     SqlAuthorizationCodeRepository,
 )
+from infrastructure.repositories.sql_entity_membership_repository import (
+    SqlEntityMembershipRepository,
+)
+from infrastructure.repositories.sql_entity_repository import SqlEntityRepository
 from infrastructure.repositories.sql_oauth_client_repository import (
     SqlOAuthClientRepository,
 )
@@ -126,6 +130,8 @@ def build_context(settings: Settings, pool: aiomysql.Pool) -> AuthContext:
         oauth_clients=SqlOAuthClientRepository(pool),
         authorization_codes=SqlAuthorizationCodeRepository(pool),
         provider_accounts=SqlProviderAccountRepository(pool),
+        entities=SqlEntityRepository(pool),
+        entity_memberships=SqlEntityMembershipRepository(pool),
         audit=SqlAuditRepository(pool),
         rate_limiter=MemoryRateLimiter(),
         password_hasher=Argon2PasswordHasher(),

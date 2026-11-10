@@ -115,8 +115,44 @@ class InvalidNicknameError(DomainError):
     status_code = 422
 
 
+class InvalidPhoneError(DomainError):
+    """El teléfono no cumple el formato admitido."""
+
+    status_code = 422
+
+
 class NicknameTakenError(DomainError):
     """El nickname ya está en uso por otro usuario."""
+
+    status_code = 409
+
+
+class InvalidEntityError(DomainError):
+    """El nombre o tipo de entidad no es válido."""
+
+    status_code = 422
+
+
+class EntityTakenError(DomainError):
+    """El nombre de entidad ya está en uso."""
+
+    status_code = 409
+
+
+class EntityNotFoundError(DomainError):
+    """La entidad indicada no existe."""
+
+    status_code = 404
+
+
+class MembershipNotFoundError(DomainError):
+    """La solicitud/pertenencia indicada no existe."""
+
+    status_code = 404
+
+
+class MembershipAlreadyDecidedError(DomainError):
+    """La solicitud ya fue aprobada o rechazada."""
 
     status_code = 409
 

@@ -13,6 +13,8 @@ from domain.ports.crypto import (
     TokenHasher,
 )
 from domain.ports.email import EmailSender
+from domain.ports.entity_membership_repository import EntityMembershipRepository
+from domain.ports.entity_repository import EntityRepository
 from domain.ports.event_bus import EventPublisher
 from domain.ports.jwt import TokenProvider
 from domain.ports.oauth_client_repository import OAuthClientRepository
@@ -72,6 +74,8 @@ class AuthContext:
     oauth_clients: OAuthClientRepository
     authorization_codes: AuthorizationCodeRepository
     provider_accounts: ProviderAccountRepository
+    entities: EntityRepository
+    entity_memberships: EntityMembershipRepository
     audit: AuditRepository
     rate_limiter: RateLimiter
     password_hasher: PasswordHasher

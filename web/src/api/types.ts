@@ -40,12 +40,46 @@ export interface UserMe {
   email: string
   name?: string | null
   nickname?: string | null
+  phone?: string | null
   roles: string[]
   email_verified: boolean
   status: string
   created_at: string | null
   onboarding?: OnboardingState | null
   nickname_public_consent?: boolean
+  memberships?: MembershipInfo[]
+}
+
+export type EntityKind = 'coral' | 'orquesta' | 'grupo'
+
+export type MembershipStatus = 'pending' | 'approved' | 'rejected'
+
+export interface MembershipInfo {
+  id: string
+  entity_id: string
+  entity_name: string
+  entity_kind: EntityKind
+  status: MembershipStatus
+  is_representative: boolean
+  requested_at: string
+  decided_at: string | null
+}
+
+export interface EntityListItem {
+  id: string
+  name: string
+  kind: EntityKind
+}
+
+export interface EntityRequestInfo {
+  id: string
+  entity_id: string
+  entity_name: string
+  entity_kind: EntityKind
+  user_id: string
+  nickname: string | null
+  name: string | null
+  requested_at: string
 }
 
 export interface SessionInfo {

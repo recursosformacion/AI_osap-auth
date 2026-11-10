@@ -20,6 +20,9 @@ from api.schemas import (
     ChangeEmailRequest,
     ChangePasswordRequest,
     ConfirmChangeEmailRequest,
+    DecideEntityRequest,
+    EntityListItem,
+    EntityRequestInfo,
     LegalCurrentResponse,
     LoginRequest,
     LoginResponse,
@@ -32,6 +35,8 @@ from api.schemas import (
     ResendVerificationRequest,
     SessionInfo,
     UpdateMeRequest,
+    UpdateMyEntityRequest,
+    UpdatePhoneRequest,
     UserMeResponse,
     VerifyEmailRequest,
 )
@@ -45,12 +50,19 @@ from application.use_cases.admin_users import (
     SetPublicConsentUseCase,
 )
 from application.use_cases.delete_account import DeleteAccountUseCase
+from application.use_cases.entities import (
+    DecideEntityRequestUseCase,
+    ListEntitiesUseCase,
+    ListMyEntityRequestsUseCase,
+    UpdateMyEntityUseCase,
+)
 from application.use_cases.login import LoginUseCase
 from application.use_cases.me import (
     ChangeEmailUseCase,
     ChangePasswordUseCase,
     ConfirmChangeEmailUseCase,
     GetMeUseCase,
+    UpdateMyPhoneUseCase,
 )
 from application.use_cases.notify_recognition import NotifyRecognitionUseCase
 from application.use_cases.onboarding import (
@@ -251,6 +263,10 @@ async def complete_onboarding(
         nickname=body.nickname,
         terms_version=body.terms_version,
         privacy_version=body.privacy_version,
+        entity_id=body.entity_id,
+        entity_name=body.entity_name,
+        entity_kind=body.entity_kind,
+        phone=body.phone,
         ip=ip,
         user_agent=ua,
     )
@@ -263,6 +279,68 @@ async def me(
     user: dict = Depends(current_user),
 ) -> UserMeResponse:
     return UserMeResponse(**await GetMeUseCase(ctx).execute(user_id=uuid.UUID(user["sub"])))
+
+
+@router.get("/entities", response_model=list[EntityListItem])
+async def list_entities(
+    ctx: AuthContext = Depends(get_ctx),
+    user: dict = Depends(current_user),
+) -> list[EntityListItem]:
+    """Entidades dadas de alta, para ofrecerlas en el alta y en la ficha del usuario."""
+    return [
+        EntityListItem(**row) for row in await ListEntitiesUseCase(ctx).execute()
+    ]
+
+
+@router.put("/me/entity", response_model=UserMeResponse)
+async def update_my_entity(
+    body: UpdateMyEntityRequest,
+    ctx: AuthContext = Depends(get_ctx),
+    user: dict = Depends(current_user),
+    ip: str | None = Depends(client_ip),
+    ua: str | None = Depends(client_user_agent),
+) -> UserMeResponse:
+    """El propio usuario cambia su entidad: representar una nueva, unirse a una o dejarla."""
+    result = await UpdateMyEntityUseCase(ctx).execute(
+        user_id=uuid.UUID(user["sub"]),
+        action=body.action,
+        entity_id=body.entity_id,
+        entity_name=body.entity_name,
+        entity_kind=body.entity_kind,
+        ip=ip,
+        user_agent=ua,
+    )
+    return UserMeResponse(**result)
+
+
+@router.get("/me/entity-requests", response_model=list[EntityRequestInfo])
+async def list_my_entity_requests(
+    ctx: AuthContext = Depends(get_ctx),
+    user: dict = Depends(current_user),
+) -> list[EntityRequestInfo]:
+    """Solicitudes pendientes de las entidades que gestiona el usuario."""
+    rows = await ListMyEntityRequestsUseCase(ctx).execute(manager_id=uuid.UUID(user["sub"]))
+    return [EntityRequestInfo(**row) for row in rows]
+
+
+@router.post("/me/entity-requests/{membership_id}/decision", status_code=200)
+async def decide_entity_request(
+    membership_id: str,
+    body: DecideEntityRequest,
+    ctx: AuthContext = Depends(get_ctx),
+    user: dict = Depends(current_user),
+    ip: str | None = Depends(client_ip),
+    ua: str | None = Depends(client_user_agent),
+) -> JSONResponse:
+    """El gestor aprueba o rechaza una solicitud de incorporación (decisión independiente)."""
+    result = await DecideEntityRequestUseCase(ctx).execute(
+        manager_id=uuid.UUID(user["sub"]),
+        membership_id=uuid.UUID(membership_id),
+        action=body.action,
+        ip=ip,
+        user_agent=ua,
+    )
+    return JSONResponse(result)
 
 
 @router.put("/me/public-consent", response_model=UserMeResponse)
@@ -293,13 +371,32 @@ async def update_me(
     ip: str | None = Depends(client_ip),
     ua: str | None = Depends(client_user_agent),
 ) -> UserMeResponse:
-    """Actualiza el NOMBRE del propio usuario (no permite tocar roles ni estado)."""
+    """Actualiza el NOMBRE y el NICKNAME del propio usuario (no permite tocar roles ni estado)."""
     result = await AdminUpdateUserUseCase(ctx).execute(
         user_id=uuid.UUID(user["sub"]),
         name=body.name,
+        nickname=body.nickname,
         roles=None,
         status=None,
         actor=user["sub"],
+        ip=ip,
+        user_agent=ua,
+    )
+    return UserMeResponse(**result)
+
+
+@router.put("/me/phone", response_model=UserMeResponse)
+async def update_my_phone(
+    body: UpdatePhoneRequest,
+    ctx: AuthContext = Depends(get_ctx),
+    user: dict = Depends(current_user),
+    ip: str | None = Depends(client_ip),
+    ua: str | None = Depends(client_user_agent),
+) -> UserMeResponse:
+    """Añade, cambia o borra el teléfono voluntario del propio usuario (WhatsApp)."""
+    result = await UpdateMyPhoneUseCase(ctx).execute(
+        user_id=uuid.UUID(user["sub"]),
+        phone=body.phone,
         ip=ip,
         user_agent=ua,
     )
@@ -425,7 +522,7 @@ async def admin_update_user(
 ) -> UserMeResponse:
     result = await AdminUpdateUserUseCase(ctx).execute(
         user_id=uuid.UUID(user_id), name=body.name, nickname=body.nickname,
-        roles=body.roles, status=body.status,
+        phone=body.phone, roles=body.roles, status=body.status,
         actor=user["sub"], ip=ip, user_agent=ua,
     )
     return UserMeResponse(**result)

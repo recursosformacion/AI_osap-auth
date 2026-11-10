@@ -2,8 +2,19 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import { authApi } from '../../api/authApi'
-import type { CompleteAuthorizationInput, LegalCurrent } from '../../api/types'
+import type {
+  CompleteAuthorizationInput,
+  EntityKind,
+  EntityListItem,
+  LegalCurrent,
+} from '../../api/types'
 import { useAuth } from '../../auth/AuthContext'
+
+const KIND_LABELS: Record<EntityKind, string> = {
+  coral: 'Coral',
+  orquesta: 'Orquesta',
+  grupo: 'Grupo',
+}
 
 function _pendingAuthorize(): CompleteAuthorizationInput | null {
   const raw = sessionStorage.getItem('osap.pendingAuthorize')
@@ -33,6 +44,7 @@ function proposeNickname(name: string | null | undefined): string {
 }
 
 // Alta/onboarding del usuario: nickname único + aceptación legal + visibilidad pública.
+// Además pregunta si representa una entidad (y su nombre) o si pertenece a una ya creada.
 // La visibilidad viene marcada por defecto (opt-out) y puede desmarcarse aquí mismo.
 export function OnboardingPage() {
   const { user, reload } = useAuth()
@@ -44,9 +56,15 @@ export function OnboardingPage() {
   const [nickname, setNickname] = useState(
     user?.nickname ?? proposeNickname(user?.name),
   )
+  const [phone, setPhone] = useState(user?.phone ?? '')
   const [terms, setTerms] = useState(user?.onboarding?.terms_accepted ?? false)
   const [privacy, setPrivacy] = useState(user?.onboarding?.privacy_accepted ?? false)
   const [isPublic, setIsPublic] = useState(user?.nickname_public_consent ?? true)
+  const [entities, setEntities] = useState<EntityListItem[]>([])
+  const [representsEntity, setRepresentsEntity] = useState(false)
+  const [entityName, setEntityName] = useState('')
+  const [entityKind, setEntityKind] = useState<EntityKind>('coral')
+  const [memberEntityId, setMemberEntityId] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -57,6 +75,11 @@ export function OnboardingPage() {
       } catch {
         setError('No se pudieron cargar los textos legales.')
       }
+      try {
+        setEntities(await authApi.listEntities())
+      } catch {
+        // El listado es opcional: si falla, el usuario aún puede representar una entidad nueva.
+      }
     })()
   }, [])
 
@@ -66,9 +89,17 @@ export function OnboardingPage() {
     setNickname((current) => current || user?.nickname || proposeNickname(user?.name))
   }, [user?.nickname, user?.name])
 
+  useEffect(() => {
+    setPhone((current) => current || user?.phone || '')
+  }, [user?.phone])
+
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     if (!legal) return
+    if (representsEntity && !entityName.trim()) {
+      setError('Indica el nombre de la entidad que representas.')
+      return
+    }
     setSaving(true)
     setError(null)
     try {
@@ -76,6 +107,12 @@ export function OnboardingPage() {
         nickname: nickname.trim(),
         terms_version: legal.terms_version,
         privacy_version: legal.privacy_version,
+        phone: phone.trim() || undefined,
+        ...(representsEntity
+          ? { entity_name: entityName.trim(), entity_kind: entityKind }
+          : memberEntityId
+            ? { entity_id: memberEntityId }
+            : {}),
       })
       await authApi.setPublicConsent(isPublic)
       // Si veníamos de un `authorize` en curso (email embebido o social), reanudarlo.
@@ -92,7 +129,9 @@ export function OnboardingPage() {
       await reload()
       navigate('/auth/account')
     } catch {
-      setError('No se pudo completar el alta. Revisa el nickname (3-30, único) y acepta los textos.')
+      setError(
+        'No se pudo completar el alta. Revisa el nickname (3-30, único), la entidad (nombre único) y acepta los textos.',
+      )
     } finally {
       setSaving(false)
     }
@@ -115,6 +154,85 @@ export function OnboardingPage() {
         placeholder="3-30 caracteres"
         required
       />
+
+      <label htmlFor="onboarding-phone" className="muted">Teléfono (opcional)</label>
+      <input
+        id="onboarding-phone"
+        type="tel"
+        value={phone}
+        onChange={(e) => setPhone(e.target.value)}
+        maxLength={32}
+        placeholder="+34 600 123 456"
+      />
+      <p className="muted">
+        Solo para comunicaciones por WhatsApp de tu entidad. Puedes borrarlo cuando quieras.
+      </p>
+
+      <label className="row" style={{ marginTop: '0.75rem' }}>
+        <input
+          type="checkbox"
+          checked={representsEntity}
+          onChange={(e) => {
+            setRepresentsEntity(e.target.checked)
+            if (e.target.checked) setMemberEntityId('')
+          }}
+        />
+        <span>Represento a una entidad (coral, orquesta, grupo)</span>
+      </label>
+
+      {representsEntity && (
+        <>
+          <label htmlFor="onboarding-entity-name" className="muted">Nombre de la entidad</label>
+          <input
+            id="onboarding-entity-name"
+            value={entityName}
+            onChange={(e) => setEntityName(e.target.value)}
+            maxLength={120}
+            placeholder="Coral nnnnn / Orquesta kkkkk / Grup sss"
+            required
+          />
+          <label htmlFor="onboarding-entity-kind" className="muted">Tipo de entidad</label>
+          <select
+            id="onboarding-entity-kind"
+            value={entityKind}
+            onChange={(e) => setEntityKind(e.target.value as EntityKind)}
+          >
+            {Object.entries(KIND_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <p className="muted">
+            Este nombre será el que se ofrezca a futuros usuarios para agruparse.
+          </p>
+        </>
+      )}
+
+      <label htmlFor="onboarding-member-entity" className="muted" style={{ marginTop: '0.75rem' }}>
+        Solicito pertenecer a una entidad ya registrada
+      </label>
+      <select
+        id="onboarding-member-entity"
+        value={memberEntityId}
+        disabled={representsEntity}
+        onChange={(e) => {
+          setMemberEntityId(e.target.value)
+          if (e.target.value) setRepresentsEntity(false)
+        }}
+      >
+        <option value="">— Ninguna —</option>
+        {entities.map((entity) => (
+          <option key={entity.id} value={entity.id}>
+            {entity.name} ({KIND_LABELS[entity.kind]})
+          </option>
+        ))}
+      </select>
+      {memberEntityId ? (
+        <p className="muted">
+          La solicitud se enviará al gestor de la entidad. No serás miembro hasta que la apruebe.
+        </p>
+      ) : null}
 
       <label className="row" style={{ marginTop: '0.75rem' }}>
         <input type="checkbox" checked={terms} onChange={(e) => setTerms(e.target.checked)} required />

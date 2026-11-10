@@ -7,6 +7,9 @@ import { httpClient } from './httpClient'
 import type {
   CompleteAuthorizationInput,
   CompleteAuthorizationResponse,
+  EntityKind,
+  EntityListItem,
+  EntityRequestInfo,
   LegalCurrent,
   LoginResponse,
   MessageResponse,
@@ -71,8 +74,34 @@ export const authApi = {
     nickname: string
     terms_version: string
     privacy_version: string
+    entity_id?: string
+    entity_name?: string
+    entity_kind?: EntityKind
+    phone?: string
   }): Promise<UserMe> {
     return httpClient.post<UserMe>('/auth/onboarding', input)
+  },
+  updateMyPhone(phone: string | null): Promise<UserMe> {
+    return httpClient.put<UserMe>('/auth/me/phone', { phone })
+  },
+  listEntities(): Promise<EntityListItem[]> {
+    return httpClient.get<EntityListItem[]>('/auth/entities')
+  },
+  updateMyEntity(input: {
+    action: 'join' | 'leave' | 'represent'
+    entity_id?: string
+    entity_name?: string
+    entity_kind?: EntityKind
+  }): Promise<UserMe> {
+    return httpClient.put<UserMe>('/auth/me/entity', input)
+  },
+  listEntityRequests(): Promise<EntityRequestInfo[]> {
+    return httpClient.get<EntityRequestInfo[]>('/auth/me/entity-requests')
+  },
+  decideEntityRequest(id: string, action: 'approve' | 'reject'): Promise<MessageResponse> {
+    return httpClient.post<MessageResponse>(`/auth/me/entity-requests/${id}/decision`, {
+      action,
+    })
   },
   setPublicConsent(value: boolean): Promise<UserMe> {
     return httpClient.put<UserMe>('/auth/me/public-consent', { value })

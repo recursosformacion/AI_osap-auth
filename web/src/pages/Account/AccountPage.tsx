@@ -1,6 +1,13 @@
 import { Link } from 'react-router-dom'
 
+import type { MembershipStatus } from '../../api/types'
 import { useAuth } from '../../auth/AuthContext'
+
+const MEMBERSHIP_LABELS: Record<MembershipStatus, string> = {
+  pending: 'Pendiente de aprobación',
+  approved: 'Aprobada',
+  rejected: 'Rechazada',
+}
 
 function formatDate(value: string | null): string {
   if (!value) return '—'
@@ -38,6 +45,8 @@ export function AccountPage() {
           <dd>{user.name || '—'}</dd>
           <dt className="muted">Nickname</dt>
           <dd>{user.nickname || '—'}</dd>
+          <dt className="muted">Teléfono</dt>
+          <dd>{user.phone || '—'}</dd>
           <dt className="muted">Email</dt>
           <dd>{user.email}</dd>
           <dt className="muted">Estado de verificación</dt>
@@ -51,6 +60,33 @@ export function AccountPage() {
           <dt className="muted">Fecha de creación</dt>
           <dd>{formatDate(user.created_at)}</dd>
         </dl>
+      </section>
+
+      <section className="panel">
+        <h3 className="panel-title">Entidades</h3>
+        {user.memberships && user.memberships.length > 0 ? (
+          <ul>
+            {user.memberships.map((membership) => (
+              <li key={membership.id}>
+                <strong>{membership.entity_name}</strong> ({membership.entity_kind}) —{' '}
+                {MEMBERSHIP_LABELS[membership.status]}
+                {membership.is_representative ? ' · la representas' : ''}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="panel-sub">
+            No perteneces a ninguna entidad. Puedes solicitar unirte a una o representar la tuya.
+          </p>
+        )}
+        <div className="row">
+          <Link className="btn btn-outline btn-sm" to="/auth/account/entity">
+            Gestionar entidades
+          </Link>
+          <Link className="btn btn-outline btn-sm" to="/auth/account/entity-requests">
+            Solicitudes de ingreso
+          </Link>
+        </div>
       </section>
 
       <section className="panel">
@@ -80,6 +116,9 @@ export function AccountPage() {
         <h3 className="panel-title">Cuenta personal</h3>
         <p className="panel-sub">Cambia tu email o elimina tu cuenta.</p>
         <div className="row">
+          <Link className="btn btn-outline btn-sm" to="/auth/account/phone">
+            Teléfono (WhatsApp)
+          </Link>
           <Link className="btn btn-outline btn-sm" to="/auth/account/email">
             Cambiar email
           </Link>

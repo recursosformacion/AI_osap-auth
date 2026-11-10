@@ -35,6 +35,7 @@ def _from_row(row: dict[str, Any]) -> User:
         email_verified_at=verified,
         nickname=row.get("nickname"),
         nickname_norm=row.get("nickname_norm"),
+        phone=row.get("phone"),
         terms_version=row.get("terms_version"),
         terms_accepted_at=row.get("terms_accepted_at"),
         privacy_version=row.get("privacy_version"),
@@ -118,11 +119,11 @@ class SqlUserRepository(UserRepository):
                     """
                     INSERT INTO users
                       (id, email_lookup, email_cipher, email_verified_at, password_hash,
-                       roles, status, key_version, name, nickname, nickname_norm,
+                       roles, status, key_version, name, nickname, nickname_norm, phone,
                        terms_version, terms_accepted_at, privacy_version, privacy_accepted_at,
                        onboarding_completed_at, nickname_public_consent, nickname_public_consent_at,
                        created_at, updated_at)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                     ON DUPLICATE KEY UPDATE
                       email_lookup=VALUES(email_lookup),
                       email_cipher=VALUES(email_cipher),
@@ -134,6 +135,7 @@ class SqlUserRepository(UserRepository):
                       name=VALUES(name),
                       nickname=VALUES(nickname),
                       nickname_norm=VALUES(nickname_norm),
+                      phone=VALUES(phone),
                       terms_version=VALUES(terms_version),
                       terms_accepted_at=VALUES(terms_accepted_at),
                       privacy_version=VALUES(privacy_version),
@@ -155,6 +157,7 @@ class SqlUserRepository(UserRepository):
                         user.name,
                         user.nickname,
                         user.nickname_norm,
+                        user.phone,
                         user.terms_version,
                         user.terms_accepted_at,
                         user.privacy_version,
