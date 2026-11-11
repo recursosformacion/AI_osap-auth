@@ -6,9 +6,15 @@ Usan OAuth2/OIDC Authorization Code + PKCE. Necesitan credenciales reales
 
 from __future__ import annotations
 
+import asyncio
+import logging
+
 import httpx
 
+from domain.exceptions import OAuthError
 from domain.ports.social import ProviderProfile, SocialProvider
+
+logger = logging.getLogger(__name__)
 
 
 class BaseOAuthProvider(SocialProvider):
@@ -45,7 +51,24 @@ class BaseOAuthProvider(SocialProvider):
             token_resp = await client.post(
                 self.token_endpoint, data=data, headers={"Accept": "application/json"}
             )
-            token_resp.raise_for_status()
+            if token_resp.status_code >= 500:
+                # Google devuelve 500 esporádicos en /token; un reintento evita fallos
+                # transitorios sin repetir el código más de una vez.
+                await asyncio.sleep(0.8)
+                token_resp = await client.post(
+                    self.token_endpoint, data=data, headers={"Accept": "application/json"}
+                )
+            if token_resp.status_code >= 400:
+                logger.error(
+                    "OAuth token exchange failed (%s): HTTP %s %s",
+                    self.name,
+                    token_resp.status_code,
+                    token_resp.text[:500],
+                )
+                raise OAuthError(
+                    "provider_token_error",
+                    "No se pudo completar el acceso con el proveedor",
+                )
             token_data = token_resp.json()
             access_token = token_data.get("access_token")
             if not access_token:
