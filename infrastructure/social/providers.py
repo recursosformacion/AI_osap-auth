@@ -33,8 +33,14 @@ class BaseOAuthProvider(SocialProvider):
             "state": state,
             "code_challenge": code_challenge,
             "code_challenge_method": "S256",
+            **self.extra_authorize_params,
         }
         return f"{self.authorize_endpoint}?{urllib.parse.urlencode(params)}"
+
+    @property
+    def extra_authorize_params(self) -> dict[str, str]:
+        """Parámetros adicionales del authorize (p. ej. forzar el selector de cuenta)."""
+        return {}
 
     async def exchange_and_profile(
         self, code: str, redirect_uri: str, code_verifier: str
@@ -107,6 +113,12 @@ class BaseOAuthProvider(SocialProvider):
 
 class GoogleProvider(BaseOAuthProvider):
     name = "google"
+
+    @property
+    def extra_authorize_params(self) -> dict[str, str]:
+        # Fuerza el selector de cuenta: tras cerrar sesión, Google no debe reutilizar
+        # silenciosamente la última cuenta.
+        return {"prompt": "select_account"}
 
     @property
     def authorize_endpoint(self) -> str:

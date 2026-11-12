@@ -10,6 +10,11 @@ import { useSubmission } from '../../hooks/useSubmission'
 
 const ALL_ROLES = ['user', 'moderator', 'admin']
 const STATUSES = ['active', 'pending_verification', 'disabled']
+const MEMBERSHIP_LABELS: Record<string, string> = {
+  pending: 'pendiente',
+  approved: 'aprobada',
+  rejected: 'rechazada',
+}
 
 function formatDate(value: string | null): string {
   if (!value) return '—'
@@ -145,6 +150,7 @@ export function AdminUsersPage() {
               <th>Email</th>
               <th>Nombre</th>
               <th>Nickname</th>
+              <th>Entidades</th>
               <th>Email verificado</th>
               <th>Estado</th>
               <th>Roles</th>
@@ -158,6 +164,23 @@ export function AdminUsersPage() {
                 <td>{u.email}</td>
                 <td>{u.name || '—'}</td>
                 <td>{u.nickname || '—'}</td>
+                <td>
+                  {u.memberships && u.memberships.length > 0 ? (
+                    <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
+                      {u.memberships.map((m) => (
+                        <li key={m.id}>
+                          {m.entity_name}{' '}
+                          <span className="muted">
+                            ({m.entity_kind}) · {MEMBERSHIP_LABELS[m.status] ?? m.status}
+                            {m.is_representative ? ' · representante' : ''}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <span className="muted">—</span>
+                  )}
+                </td>
                 <td>
                   {u.email_verified ? (
                     <span className="badge badge-ok">Sí</span>
@@ -184,7 +207,7 @@ export function AdminUsersPage() {
             ))}
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={8} className="muted">
+                <td colSpan={9} className="muted">
                   Sin resultados.
                 </td>
               </tr>
@@ -316,6 +339,40 @@ function EditorModal({
                 </option>
               ))}
             </select>
+          </div>
+        ) : null}
+        {editor.user ? (
+          <div className="form-field">
+            <label>Entidades</label>
+            {editor.user.memberships && editor.user.memberships.length > 0 ? (
+              <>
+                <p style={{ margin: '4px 0' }}>
+                  <strong>Pertenece a:</strong>{' '}
+                  {editor.user.memberships
+                    .filter((m) => !m.is_representative)
+                    .map((m) => `${m.entity_name} (${MEMBERSHIP_LABELS[m.status] ?? m.status})`)
+                    .join(', ') || '—'}
+                </p>
+                <p style={{ margin: '4px 0' }}>
+                  <strong>Representa a:</strong>{' '}
+                  {editor.user.memberships
+                    .filter((m) => m.is_representative)
+                    .map((m) => `${m.entity_name} (${MEMBERSHIP_LABELS[m.status] ?? m.status})`)
+                    .join(', ') || '—'}
+                </p>
+                <ul style={{ margin: '4px 0', paddingLeft: 18 }}>
+                  {editor.user.memberships.map((m) => (
+                    <li key={m.id}>
+                      <strong>{m.entity_name}</strong> · {m.entity_kind} ·{' '}
+                      {MEMBERSHIP_LABELS[m.status] ?? m.status}
+                      {m.entity_email ? ` · ${m.entity_email}` : ''}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="muted">Sin entidades.</p>
+            )}
           </div>
         ) : null}
         <ErrorMessage message={error} />
