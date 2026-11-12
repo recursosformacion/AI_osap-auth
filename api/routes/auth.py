@@ -16,6 +16,9 @@ from api.dependencies import (
 )
 from api.schemas import (
     AdminCreateUserRequest,
+    AdminEntityInfo,
+    AdminMembershipCreate,
+    AdminRepresentativeRequest,
     AdminUpdateUserRequest,
     ChangeEmailRequest,
     ChangePasswordRequest,
@@ -41,6 +44,13 @@ from api.schemas import (
     VerifyEmailRequest,
 )
 from application.context import AuthContext
+from application.use_cases.admin_entities import (
+    admin_add_membership,
+    admin_decide_membership,
+    admin_delete_membership,
+    admin_entity_infos,
+    admin_set_representative,
+)
 from application.use_cases.admin_users import (
     AdminCreateUserUseCase,
     AdminDeleteUserUseCase,
@@ -474,6 +484,108 @@ async def admin_get_user(
     user: dict = Depends(require_role("admin")),
 ) -> UserMeResponse:
     result = await AdminGetUserUseCase(ctx).execute(user_id=uuid.UUID(user_id))
+    return UserMeResponse(**result)
+
+
+@router.get("/admin/entities", response_model=list[AdminEntityInfo])
+async def admin_list_entities(
+    ctx: AuthContext = Depends(get_ctx),
+    user: dict = Depends(require_role("admin")),
+) -> list[AdminEntityInfo]:
+    """Entidades y representantes para el selector de administración."""
+    return [AdminEntityInfo(**row) for row in await admin_entity_infos(ctx)]
+
+
+@router.post("/admin/users/{user_id}/memberships", response_model=UserMeResponse)
+async def admin_add_user_membership(
+    user_id: str,
+    body: AdminMembershipCreate,
+    ctx: AuthContext = Depends(get_ctx),
+    admin: dict = Depends(require_role("admin")),
+    ip: str | None = Depends(client_ip),
+    ua: str | None = Depends(client_user_agent),
+) -> UserMeResponse:
+    """Añade o cambia la pertenencia de un usuario a una entidad (admin)."""
+    result = await admin_add_membership(
+        ctx,
+        user_id=user_id,
+        entity_id=body.entity_id,
+        status=body.status,
+        representative=body.representative,
+        actor=admin["sub"],
+        ip=ip,
+        user_agent=ua,
+    )
+    return UserMeResponse(**result)
+
+
+@router.post(
+    "/admin/users/{user_id}/memberships/{membership_id}/decision",
+    response_model=UserMeResponse,
+)
+async def admin_decide_user_membership(
+    user_id: str,
+    membership_id: str,
+    body: DecideEntityRequest,
+    ctx: AuthContext = Depends(get_ctx),
+    admin: dict = Depends(require_role("admin")),
+    ip: str | None = Depends(client_ip),
+    ua: str | None = Depends(client_user_agent),
+) -> UserMeResponse:
+    """El admin aprueba o rechaza una solicitud de incorporación."""
+    result = await admin_decide_membership(
+        ctx,
+        user_id=user_id,
+        membership_id=membership_id,
+        action=body.action,
+        actor=admin["sub"],
+        ip=ip,
+        user_agent=ua,
+    )
+    return UserMeResponse(**result)
+
+
+@router.delete(
+    "/admin/users/{user_id}/memberships/{membership_id}", response_model=UserMeResponse
+)
+async def admin_delete_user_membership(
+    user_id: str,
+    membership_id: str,
+    ctx: AuthContext = Depends(get_ctx),
+    admin: dict = Depends(require_role("admin")),
+    ip: str | None = Depends(client_ip),
+    ua: str | None = Depends(client_user_agent),
+) -> UserMeResponse:
+    """El admin quita una pertenencia (no la del representante vigente)."""
+    result = await admin_delete_membership(
+        ctx,
+        user_id=user_id,
+        membership_id=membership_id,
+        actor=admin["sub"],
+        ip=ip,
+        user_agent=ua,
+    )
+    return UserMeResponse(**result)
+
+
+@router.post("/admin/entities/{entity_id}/representative", response_model=UserMeResponse)
+async def admin_set_entity_representative(
+    entity_id: str,
+    body: AdminRepresentativeRequest,
+    ctx: AuthContext = Depends(get_ctx),
+    admin: dict = Depends(require_role("admin")),
+    ip: str | None = Depends(client_ip),
+    ua: str | None = Depends(client_user_agent),
+) -> UserMeResponse:
+    """Transfiere la representación de una entidad a otro usuario."""
+    result = await admin_set_representative(
+        ctx,
+        entity_id=entity_id,
+        user_id=body.user_id,
+        actor=admin["sub"],
+        ip=ip,
+        user_agent=ua,
+    )
     return UserMeResponse(**result)
 
 

@@ -155,6 +155,31 @@ class DecideEntityRequest(BaseModel):
     action: Literal["approve", "reject"]
 
 
+class AdminEntityInfo(BaseModel):
+    """Entidad con su representante, para la administración."""
+
+    id: str
+    name: str
+    kind: str
+    email: str | None = None
+    representative_user_id: str | None = None
+    representative_name: str | None = None
+
+
+class AdminMembershipCreate(BaseModel):
+    """Alta o cambio de pertenencia desde administración."""
+
+    entity_id: str
+    status: Literal["approved", "pending", "rejected"] = "approved"
+    representative: bool = False
+
+
+class AdminRepresentativeRequest(BaseModel):
+    """Transferencia de la representación de una entidad."""
+
+    user_id: str
+
+
 class UserMeResponse(BaseModel):
     user_id: str
     email: str
