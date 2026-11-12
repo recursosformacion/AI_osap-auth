@@ -190,7 +190,7 @@ export function OnboardingPage() {
             if (e.target.checked) setMemberEntityId('')
           }}
         />
-        <span>Represento a una entidad (coral, orquesta, grupo)</span>
+        <span>¿Representas a una entidad?</span>
       </label>
 
       {representsEntity && (
@@ -228,10 +228,6 @@ export function OnboardingPage() {
             placeholder="contacto@entidad.example"
             required
           />
-          <p className="muted">
-            Este nombre será el que se ofrezca a futuros usuarios para agruparse. El correo
-            queda guardado con el creador como responsable.
-          </p>
         </>
       )}
 
