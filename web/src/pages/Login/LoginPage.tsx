@@ -246,12 +246,19 @@ export function LoginPage() {
             <Link className="link text-center" to="/auth/forgot-password">
               ¿Has olvidado tu contraseña?
             </Link>
-            <p className="muted text-center" style={{ margin: 0 }}>
-              ¿No tienes cuenta?{' '}
-              <button type="button" className="link-as-button" onClick={() => setMode('register')}>
+            <div className="stack" style={{ marginTop: 12 }}>
+              <p className="muted text-center" style={{ margin: 0 }}>
+                ¿No tienes cuenta?
+              </p>
+              <button
+                type="button"
+                className="btn btn-outline"
+                style={{ width: '100%' }}
+                onClick={() => setMode('register')}
+              >
                 Crear una cuenta
               </button>
-            </p>
+            </div>
           </div>
         </>
       ) : (
