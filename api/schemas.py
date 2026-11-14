@@ -185,6 +185,7 @@ class AdminEntityCreate(BaseModel):
     kind: str
     email: str | None = None
     manager_user_id: str | None = None
+    entity_id: str | None = None
 
 
 class AdminEntityUpdate(BaseModel):
@@ -324,6 +325,7 @@ class NotifyRecognitionRequest(BaseModel):
     recognition_type: str
     action: str = "granted"
     project: str = "omr"
+
 
 
 

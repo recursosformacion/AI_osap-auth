@@ -109,6 +109,7 @@ async def admin_create_entity(
     actor: str,
     ip: str | None,
     user_agent: str | None,
+    entity_id: str | None = None,
 ) -> dict[str, Any]:
     """Alta de entidad por el admin, con gestor inicial opcional."""
     cleaned = clean_name(name)
@@ -119,12 +120,16 @@ async def admin_create_entity(
     if clean_email and await ctx.entities.get_by_email(clean_email) is not None:
         raise EntityTakenError("correo de entidad no disponible")
     manager = await _require_user(ctx, manager_user_id) if manager_user_id else None
+    parsed_id = _parse_uuid(entity_id) if entity_id else None
+    if parsed_id is not None and await ctx.entities.get_by_id(parsed_id) is not None:
+        raise EntityTakenError("ya existe una entidad con ese id")
     entity = Entity.new(
         name=cleaned,
         name_norm=norm,
         kind=validate_kind(kind),
         created_by=manager.id if manager else None,
         email=clean_email,
+        entity_id=parsed_id,
     )
     await ctx.entities.save(entity)
     if manager is not None:
@@ -447,3 +452,4 @@ async def admin_set_representative(
         context={"entity_id": str(entity.id)},
     )
     return await public_user(ctx, user)
+

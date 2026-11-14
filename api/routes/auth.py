@@ -509,6 +509,7 @@ async def admin_create_entity_route(
         kind=body.kind,
         email=body.email,
         manager_user_id=body.manager_user_id,
+        entity_id=body.entity_id,
         actor=admin["sub"],
         ip=ip,
         user_agent=ua,
@@ -767,4 +768,5 @@ async def admin_delete_user(
         user_id=uuid.UUID(user_id), actor=user["sub"], ip=ip, user_agent=ua
     )
     return JSONResponse({"message": "usuario eliminado"})
+
 

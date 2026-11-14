@@ -48,10 +48,11 @@ class Entity:
         kind: EntityKind,
         created_by: uuid.UUID | None,
         email: str | None = None,
+        entity_id: uuid.UUID | None = None,
     ) -> Entity:
         now = datetime.now(UTC)
         return cls(
-            id=uuid.uuid4(),
+            id=entity_id or uuid.uuid4(),
             name=name,
             name_norm=name_norm,
             kind=kind,
@@ -60,3 +61,4 @@ class Entity:
             updated_at=now,
             email=email,
         )
+
