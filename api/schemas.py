@@ -128,6 +128,7 @@ class MembershipInfo(BaseModel):
     entity_email: str | None = None
     status: str
     is_representative: bool
+    is_manager: bool = False
     requested_at: str
     decided_at: str | None = None
 
@@ -323,5 +324,6 @@ class NotifyRecognitionRequest(BaseModel):
     recognition_type: str
     action: str = "granted"
     project: str = "omr"
+
 
 
