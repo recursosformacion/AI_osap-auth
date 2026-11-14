@@ -16,7 +16,10 @@ from api.dependencies import (
 )
 from api.schemas import (
     AdminCreateUserRequest,
+    AdminEntityCreate,
     AdminEntityInfo,
+    AdminEntityUpdate,
+    AdminManagerRequest,
     AdminMembershipCreate,
     AdminRepresentativeRequest,
     AdminUpdateUserRequest,
@@ -45,11 +48,15 @@ from api.schemas import (
 )
 from application.context import AuthContext
 from application.use_cases.admin_entities import (
+    admin_add_manager,
     admin_add_membership,
+    admin_create_entity,
     admin_decide_membership,
     admin_delete_membership,
     admin_entity_infos,
+    admin_remove_manager,
     admin_set_representative,
+    admin_update_entity,
 )
 from application.use_cases.admin_users import (
     AdminCreateUserUseCase,
@@ -487,6 +494,95 @@ async def admin_get_user(
     return UserMeResponse(**result)
 
 
+@router.post("/admin/entities", response_model=AdminEntityInfo, status_code=201)
+async def admin_create_entity_route(
+    body: AdminEntityCreate,
+    ctx: AuthContext = Depends(get_ctx),
+    admin: dict = Depends(require_role("admin")),
+    ip: str | None = Depends(client_ip),
+    ua: str | None = Depends(client_user_agent),
+) -> AdminEntityInfo:
+    """Alta de entidad por el admin, con gestor inicial opcional."""
+    result = await admin_create_entity(
+        ctx,
+        name=body.name,
+        kind=body.kind,
+        email=body.email,
+        manager_user_id=body.manager_user_id,
+        actor=admin["sub"],
+        ip=ip,
+        user_agent=ua,
+    )
+    return AdminEntityInfo(**result)
+
+
+@router.patch("/admin/entities/{entity_id}", response_model=AdminEntityInfo)
+async def admin_update_entity_route(
+    entity_id: str,
+    body: AdminEntityUpdate,
+    ctx: AuthContext = Depends(get_ctx),
+    admin: dict = Depends(require_role("admin")),
+    ip: str | None = Depends(client_ip),
+    ua: str | None = Depends(client_user_agent),
+) -> AdminEntityInfo:
+    """Edición de los datos de una entidad."""
+    result = await admin_update_entity(
+        ctx,
+        entity_id=entity_id,
+        name=body.name,
+        kind=body.kind,
+        email=body.email,
+        actor=admin["sub"],
+        ip=ip,
+        user_agent=ua,
+    )
+    return AdminEntityInfo(**result)
+
+
+@router.post("/admin/entities/{entity_id}/managers", response_model=AdminEntityInfo)
+async def admin_add_entity_manager(
+    entity_id: str,
+    body: AdminManagerRequest,
+    ctx: AuthContext = Depends(get_ctx),
+    admin: dict = Depends(require_role("admin")),
+    ip: str | None = Depends(client_ip),
+    ua: str | None = Depends(client_user_agent),
+) -> AdminEntityInfo:
+    """Añade un gestor a la entidad."""
+    result = await admin_add_manager(
+        ctx,
+        entity_id=entity_id,
+        user_id=body.user_id,
+        actor=admin["sub"],
+        ip=ip,
+        user_agent=ua,
+    )
+    return AdminEntityInfo(**result)
+
+
+@router.delete(
+    "/admin/entities/{entity_id}/managers/{user_id}", response_model=AdminEntityInfo
+)
+async def admin_remove_entity_manager(
+    entity_id: str,
+    user_id: str,
+    ctx: AuthContext = Depends(get_ctx),
+    admin: dict = Depends(require_role("admin")),
+    ip: str | None = Depends(client_ip),
+    ua: str | None = Depends(client_user_agent),
+) -> AdminEntityInfo:
+    """Quita un gestor; la entidad debe conservar al menos uno."""
+    result = await admin_remove_manager(
+        ctx,
+        entity_id=entity_id,
+        user_id=user_id,
+        actor=admin["sub"],
+        ip=ip,
+        user_agent=ua,
+    )
+    return AdminEntityInfo(**result)
+
+
 @router.get("/admin/entities", response_model=list[AdminEntityInfo])
 async def admin_list_entities(
     ctx: AuthContext = Depends(get_ctx),
@@ -512,6 +608,7 @@ async def admin_add_user_membership(
         entity_id=body.entity_id,
         status=body.status,
         representative=body.representative,
+        manager=body.manager,
         actor=admin["sub"],
         ip=ip,
         user_agent=ua,
@@ -670,3 +767,4 @@ async def admin_delete_user(
         user_id=uuid.UUID(user_id), actor=user["sub"], ip=ip, user_agent=ua
     )
     return JSONResponse({"message": "usuario eliminado"})
+

@@ -25,6 +25,7 @@ def _from_row(row: dict[str, Any]) -> EntityMembership:
         decided_by=uuid.UUID(decided_by) if decided_by else None,
         created_at=row.get("created_at"),
         updated_at=row.get("updated_at"),
+        role=row.get("role") or "member",
     )
 
 
@@ -92,14 +93,15 @@ class SqlEntityMembershipRepository(EntityMembershipRepository):
                 """
                 INSERT INTO entity_memberships
                   (id, entity_id, user_id, status, requested_at, decided_at, decided_by,
-                   created_at, updated_at)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                   created_at, updated_at, role)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 ON DUPLICATE KEY UPDATE
                   status=VALUES(status),
                   requested_at=VALUES(requested_at),
                   decided_at=VALUES(decided_at),
                   decided_by=VALUES(decided_by),
-                  updated_at=VALUES(updated_at)
+                  updated_at=VALUES(updated_at),
+                  role=VALUES(role)
                 """,
                 (
                     str(membership.id),
@@ -111,6 +113,7 @@ class SqlEntityMembershipRepository(EntityMembershipRepository):
                     str(membership.decided_by) if membership.decided_by else None,
                     membership.created_at or now,
                     membership.updated_at or now,
+                    membership.role,
                 ),
             )
 

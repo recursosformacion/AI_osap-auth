@@ -7,7 +7,11 @@ import uuid
 import pytest
 
 from application.use_cases.admin_entities import (
+    admin_add_manager,
     admin_add_membership,
+    admin_create_entity,
+    admin_remove_manager,
+    admin_update_entity,
     admin_decide_membership,
     admin_delete_membership,
     admin_entity_infos,
@@ -19,7 +23,7 @@ from domain.exceptions import ForbiddenError
 from tests.fakes import make_context
 
 
-async def _user(ctx, email: str):
+async def _user(ctx, email: str) -> object:
     result = await RegisterUseCase(ctx).execute(
         email=email, password="s3cret-password", ip=None, user_agent=None
     )
@@ -85,8 +89,36 @@ async def test_representante_y_baja_protegida() -> None:
     rep = next(item for item in transferred["memberships"] if item["is_representative"])
     assert rep["entity_id"] == str(entity.id)
 
-    with pytest.raises(ForbiddenError):
-        await admin_delete_membership(
-            ctx, user_id=str(member.id), membership_id=rep["id"],
-            actor=str(owner.id), ip=None, user_agent=None,
-        )
+    # Con varios gestores, quitar uno está permitido; el último está protegido.\n    await admin_delete_membership(\n        ctx, user_id=str(member.id), membership_id=rep["id"],\n        actor=str(owner.id), ip=None, user_agent=None,\n    )\n    owner_membership = next(\n        item for item in transferred["memberships"]\n        if item["entity_id"] == str(entity.id) and item["is_manager"]\n    )\n    with pytest.raises(ForbiddenError):\n        await admin_delete_membership(\n            ctx, user_id=str(owner.id), membership_id=owner_membership["id"],\n            actor=str(owner.id), ip=None, user_agent=None,\n        )
+
+
+
+async def test_crud_admin_de_entidad_y_gestores() -> None:
+    ctx, _ = make_context()
+    owner = await _user(ctx, "owner@example.com")
+    second = await _user(ctx, "second@example.com")
+
+    created = await admin_create_entity(
+        ctx, name="Coral Nueva", kind="coral", email="nueva@example.com",
+        manager_user_id=str(owner.id), actor=str(owner.id), ip=None, user_agent=None,
+    )
+    assert created["name"] == "Coral Nueva"
+    assert [item["user_id"] for item in created["managers"]] == [str(owner.id)]
+
+    updated = await admin_update_entity(
+        ctx, entity_id=created["id"], name="Coral Renombrada", kind="orquesta",
+        email=None, actor=str(owner.id), ip=None, user_agent=None,
+    )
+    assert updated["name"] == "Coral Renombrada"
+    assert updated["kind"] == "orquesta"
+
+    with_two = await admin_add_manager(
+        ctx, entity_id=created["id"], user_id=str(second.id),
+        actor=str(owner.id), ip=None, user_agent=None,
+    )
+    assert len(with_two["managers"]) == 2
+    with_one = await admin_remove_manager(
+        ctx, entity_id=created["id"], user_id=str(owner.id),
+        actor=str(second.id), ip=None, user_agent=None,
+    )
+    assert [item["user_id"] for item in with_one["managers"]] == [str(second.id)]

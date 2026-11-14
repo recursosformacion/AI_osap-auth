@@ -85,7 +85,10 @@ class RegisterResponse(BaseModel):
 class PublicNameItem(BaseModel):
     """Item del lookup M2M de identidad pública.
 
-    Expone `id`, `name`, `nickname` y `nickname_public_consent` (autorización de cuenta para
+    Expone `id`, 
+ame`, 
+ickname` y 
+ickname_public_consent` (autorización de cuenta para
     mostrarse públicamente). Sigue sin email ni roles.
     """
 
@@ -96,7 +99,8 @@ class PublicNameItem(BaseModel):
 
 
 class PublicUserItem(BaseModel):
-    """Entrada de la lista pública de colaboradores: `id` + `nickname` (sin name/email/roles)."""
+    """Entrada de la lista pública de colaboradores: `id` + 
+ickname` (sin name/email/roles)."""
 
     id: str
     nickname: str
@@ -155,8 +159,14 @@ class DecideEntityRequest(BaseModel):
     action: Literal["approve", "reject"]
 
 
+class AdminEntityManager(BaseModel):
+    user_id: str
+    name: str | None = None
+    email: str | None = None
+
+
 class AdminEntityInfo(BaseModel):
-    """Entidad con su representante, para la administración."""
+    """Entidad con sus gestores, para la administración."""
 
     id: str
     name: str
@@ -164,6 +174,28 @@ class AdminEntityInfo(BaseModel):
     email: str | None = None
     representative_user_id: str | None = None
     representative_name: str | None = None
+    managers: list[AdminEntityManager] = Field(default_factory=list)
+
+
+class AdminEntityCreate(BaseModel):
+    """Alta de entidad desde administración."""
+
+    name: str
+    kind: str
+    email: str | None = None
+    manager_user_id: str | None = None
+
+
+class AdminEntityUpdate(BaseModel):
+    """Edición de los datos de una entidad."""
+
+    name: str | None = None
+    kind: str | None = None
+    email: str | None = None
+
+
+class AdminManagerRequest(BaseModel):
+    user_id: str
 
 
 class AdminMembershipCreate(BaseModel):
@@ -172,6 +204,7 @@ class AdminMembershipCreate(BaseModel):
     entity_id: str
     status: Literal["approved", "pending", "rejected"] = "approved"
     representative: bool = False
+    manager: bool = False
 
 
 class AdminRepresentativeRequest(BaseModel):
@@ -213,7 +246,8 @@ class OnboardingRequest(BaseModel):
 
 
 class UpdatePhoneRequest(BaseModel):
-    """Teléfono voluntario para comunicaciones por WhatsApp (`null` o vacío lo borra)."""
+    """Teléfono voluntario para comunicaciones por WhatsApp (
+ull` o vacío lo borra)."""
 
     phone: str | None = Field(default=None, max_length=32)
 
@@ -289,3 +323,5 @@ class NotifyRecognitionRequest(BaseModel):
     recognition_type: str
     action: str = "granted"
     project: str = "omr"
+
+

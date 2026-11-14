@@ -31,6 +31,7 @@ class EntityMembership:
     decided_by: uuid.UUID | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    role: str = "member"
 
     def approve(self, decided_by: uuid.UUID) -> None:
         self.status = MembershipStatus.APPROVED
@@ -63,6 +64,7 @@ class EntityMembership:
         user_id: uuid.UUID,
         status: MembershipStatus,
         decided_by: uuid.UUID | None = None,
+        role: str = "member",
     ) -> EntityMembership:
         now = datetime.now(UTC)
         return cls(
@@ -75,4 +77,6 @@ class EntityMembership:
             decided_by=decided_by,
             created_at=now,
             updated_at=now,
+            role=role,
         )
+

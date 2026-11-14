@@ -65,7 +65,8 @@ async def membership_infos(ctx: AuthContext, user: User) -> list[dict[str, Any]]
                 "entity_kind": entity.kind.value,
                 "entity_email": entity.email,
                 "status": membership.status.value,
-                "is_representative": entity.created_by == user.id,
+                "is_manager": membership.role == "manager" or entity.created_by == user.id,
+                "is_representative": membership.role == "manager" or entity.created_by == user.id,
                 "requested_at": membership.requested_at.isoformat(),
                 "decided_at": (
                     membership.decided_at.isoformat() if membership.decided_at else None
@@ -106,6 +107,7 @@ async def create_entity(
         user_id=user.id,
         status=MembershipStatus.APPROVED,
         decided_by=user.id,
+        role="manager",
     )
     await ctx.entity_memberships.save(membership)
     await audit(
@@ -428,3 +430,4 @@ async def _audit_membership(
             "status": membership.status.value,
         },
     )
+
