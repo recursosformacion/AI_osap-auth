@@ -122,3 +122,14 @@ async def test_crud_admin_de_entidad_y_gestores() -> None:
         actor=str(second.id), ip=None, user_agent=None,
     )
     assert [item["user_id"] for item in with_one["managers"]] == [str(second.id)]
+
+async def test_alta_con_id_de_grupo_de_amigos() -> None:
+    ctx, _ = make_context()
+    owner = await _user(ctx, "owner@example.com")
+    group_id = uuid.uuid4()
+    created = await admin_create_entity(
+        ctx, name="Coral Amigos", kind="coral", email=None,
+        manager_user_id=str(owner.id), entity_id=str(group_id),
+        actor=str(owner.id), ip=None, user_agent=None,
+    )
+    assert created["id"] == str(group_id)
