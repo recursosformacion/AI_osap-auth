@@ -21,5 +21,9 @@ export interface AuthUser {
   created_at: string | null
   onboarding?: OnboardingState | null
   nickname_public_consent?: boolean
+  news_opt_in?: boolean
+  news_language?: string
+  news_topics?: string[]
   memberships?: MembershipInfo[]
 }
+

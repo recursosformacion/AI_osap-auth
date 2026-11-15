@@ -227,6 +227,9 @@ class UserMeResponse(BaseModel):
     created_at: str | None = None
     onboarding: OnboardingState | None = None
     nickname_public_consent: bool = False
+    news_opt_in: bool = False
+    news_language: str = "es"
+    news_topics: list[str] = Field(default_factory=list)
     memberships: list[MembershipInfo] = Field(default_factory=list)
 
 
@@ -313,18 +316,28 @@ class AdminCreateUserRequest(BaseModel):
     roles: list[str] = Field(default_factory=lambda: ["user"])
 
 
+class NewsPreferencesRequest(BaseModel):
+    news_opt_in: bool = False
+    news_language: str = "es"
+    news_topics: list[str] = Field(default_factory=list, max_length=20)
+
+
 class AdminUpdateUserRequest(BaseModel):
     name: str | None = None
     nickname: str | None = None
     phone: str | None = None
     roles: list[str] | None = None
     status: str | None = None
+    news_opt_in: bool | None = None
+    news_language: str | None = None
+    news_topics: list[str] | None = None
 
 
 class NotifyRecognitionRequest(BaseModel):
     recognition_type: str
     action: str = "granted"
     project: str = "omr"
+
 
 
 

@@ -47,6 +47,9 @@ export interface UserMe {
   created_at: string | null
   onboarding?: OnboardingState | null
   nickname_public_consent?: boolean
+  news_opt_in?: boolean
+  news_language?: string
+  news_topics?: string[]
   memberships?: MembershipInfo[]
 }
 
@@ -131,3 +134,4 @@ export interface HttpError {
   status: number
   message: string
 }
+

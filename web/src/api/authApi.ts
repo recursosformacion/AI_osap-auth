@@ -82,6 +82,13 @@ export const authApi = {
   }): Promise<UserMe> {
     return httpClient.post<UserMe>('/auth/onboarding', input)
   },
+  updateNewsPreferences(input: {
+    news_opt_in: boolean
+    news_language: string
+    news_topics: string[]
+  }): Promise<UserMe> {
+    return httpClient.put<UserMe>('/auth/me/news', input)
+  },
   updateMyPhone(phone: string | null): Promise<UserMe> {
     return httpClient.put<UserMe>('/auth/me/phone', { phone })
   },
@@ -156,3 +163,4 @@ export const authApi = {
     return httpClient.delete<MessageResponse>(`/auth/admin/users/${id}`)
   },
 }
+

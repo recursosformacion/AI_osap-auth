@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { authApi } from '../../api/authApi'
 
 import type { MembershipStatus } from '../../api/types'
 import { useAuth } from '../../auth/AuthContext'
@@ -16,8 +18,57 @@ function formatDate(value: string | null): string {
   return d.toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
+const NEWS_LANGUAGES = [
+  ['es', 'Español'],
+  ['ca', 'Català'],
+  ['fr', 'Français'],
+  ['en', 'English'],
+  ['de', 'Deutsch'],
+] as const
+const NEWS_TOPICS = [
+  ["coral", "Música coral y vocal"],
+  ["clasica", "Música clásica"],
+  ["antigua", "Música antigua"],
+  ["opera", "Ópera"],
+  ["instrumentos", "Instrumentos y técnica"],
+  ["educacion", "Educación y formación"],
+  ["patrimonio", "Partituras y patrimonio"],
+  ["concursos", "Concursos y convocatorias"],
+  ["industria", "Industria y tecnología"],
+] as const
+
 export function AccountPage() {
-  const { user } = useAuth()
+  const { user, reload } = useAuth()
+  const [newsOptIn, setNewsOptIn] = useState(false)
+  const [newsLanguage, setNewsLanguage] = useState("es")
+  const [newsTopics, setNewsTopics] = useState<string[]>([])
+  const [newsSaving, setNewsSaving] = useState(false)
+  const [newsMessage, setNewsMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!user) return
+    setNewsOptIn(Boolean(user.news_opt_in))
+    setNewsLanguage(user.news_language ?? "es")
+    setNewsTopics(user.news_topics ?? [])
+  }, [user])
+
+  const saveNews = async () => {
+    setNewsSaving(true)
+    setNewsMessage(null)
+    try {
+      await authApi.updateNewsPreferences({
+        news_opt_in: newsOptIn,
+        news_language: newsLanguage,
+        news_topics: newsTopics,
+      })
+      await reload()
+      setNewsMessage("Preferencias guardadas.")
+    } catch (error) {
+      setNewsMessage(error instanceof Error ? error.message : "No se pudieron guardar.")
+    } finally {
+      setNewsSaving(false)
+    }
+  }
 
   if (!user) return null
 
@@ -113,6 +164,62 @@ export function AccountPage() {
       </section>
 
       <section className="panel">
+        <h3 className="panel-title">Noticias</h3>
+        <p className="panel-sub">
+          Elige si quieres recibir noticias de OSAP, en qué idioma y sobre qué temas.
+        </p>
+        <label className="row" style={{ gap: 8 }}>
+          <input
+            type="checkbox"
+            checked={newsOptIn}
+            onChange={(e) => setNewsOptIn(e.target.checked)}
+          />
+          Quiero recibir noticias
+        </label>
+        <label className="block" style={{ marginTop: 10 }}>
+          Idioma
+          <select
+            value={newsLanguage}
+            onChange={(e) => setNewsLanguage(e.target.value)}
+            style={{ marginLeft: 8 }}
+          >
+            {NEWS_LANGUAGES.map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+        </label>
+        <div className="row" style={{ flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+          {NEWS_TOPICS.map(([code, label]) => (
+            <label key={code} className="row" style={{ gap: 4 }}>
+              <input
+                type="checkbox"
+                checked={newsTopics.includes(code)}
+                onChange={(e) =>
+                  setNewsTopics(
+                    e.target.checked
+                      ? [...newsTopics, code]
+                      : newsTopics.filter((topic) => topic !== code),
+                  )
+                }
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+        <div className="row" style={{ marginTop: 10 }}>
+          <button
+            type="button"
+            className="btn btn-outline btn-sm"
+            disabled={newsSaving}
+            onClick={() => void saveNews()}
+          >
+            {newsSaving ? 'Guardando…' : 'Guardar preferencias'}
+          </button>
+          {newsMessage && <span className="muted">{newsMessage}</span>}
+        </div>
+      </section>
+
+      <section className="panel">
         <h3 className="panel-title">Cuenta personal</h3>
         <p className="panel-sub">Cambia tu email o elimina tu cuenta.</p>
         <div className="row">
@@ -130,3 +237,4 @@ export function AccountPage() {
     </div>
   )
 }
+

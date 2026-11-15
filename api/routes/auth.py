@@ -32,6 +32,7 @@ from api.schemas import (
     LegalCurrentResponse,
     LoginRequest,
     LoginResponse,
+    NewsPreferencesRequest,
     NotifyRecognitionRequest,
     OnboardingRequest,
     PublicConsentRequest,
@@ -65,6 +66,7 @@ from application.use_cases.admin_users import (
     AdminListUsersUseCase,
     AdminUpdateUserUseCase,
     SetPublicConsentUseCase,
+    UpdateNewsPreferencesUseCase,
 )
 from application.use_cases.delete_account import DeleteAccountUseCase
 from application.use_cases.entities import (
@@ -297,6 +299,22 @@ async def me(
     user: dict = Depends(current_user),
 ) -> UserMeResponse:
     return UserMeResponse(**await GetMeUseCase(ctx).execute(user_id=uuid.UUID(user["sub"])))
+
+
+@router.put("/me/news", response_model=UserMeResponse)
+async def update_my_news(
+    body: NewsPreferencesRequest,
+    ctx: AuthContext = Depends(get_ctx),
+    user: dict = Depends(current_user),
+    ip: str | None = Depends(client_ip),
+    ua: str | None = Depends(client_user_agent),
+) -> UserMeResponse:
+    result = await UpdateNewsPreferencesUseCase(ctx).execute(
+        user_id=uuid.UUID(user["sub"]), news_opt_in=body.news_opt_in,
+        news_language=body.news_language, news_topics=body.news_topics,
+        ip=ip, user_agent=ua,
+    )
+    return UserMeResponse(**result)
 
 
 @router.get("/entities", response_model=list[EntityListItem])
@@ -735,6 +753,8 @@ async def admin_update_user(
     result = await AdminUpdateUserUseCase(ctx).execute(
         user_id=uuid.UUID(user_id), name=body.name, nickname=body.nickname,
         phone=body.phone, roles=body.roles, status=body.status,
+        news_opt_in=body.news_opt_in, news_language=body.news_language,
+        news_topics=body.news_topics,
         actor=user["sub"], ip=ip, user_agent=ua,
     )
     return UserMeResponse(**result)
@@ -768,5 +788,6 @@ async def admin_delete_user(
         user_id=uuid.UUID(user_id), actor=user["sub"], ip=ip, user_agent=ua
     )
     return JSONResponse({"message": "usuario eliminado"})
+
 
 

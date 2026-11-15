@@ -6,6 +6,7 @@ import uuid
 
 import pytest
 
+from application.use_cases.admin_users import UpdateNewsPreferencesUseCase
 from application.use_cases.admin_entities import (
     admin_add_manager,
     admin_add_membership,
@@ -133,3 +134,16 @@ async def test_alta_con_id_de_grupo_de_amigos() -> None:
         actor=str(owner.id), ip=None, user_agent=None,
     )
     assert created["id"] == str(group_id)
+
+async def test_preferencias_de_noticias() -> None:
+    ctx, _ = make_context()
+    user = await _user(ctx, "news@example.com")
+    result = await UpdateNewsPreferencesUseCase(ctx).execute(
+        user_id=user.id, news_opt_in=True, news_language="ca",
+        news_topics=["coral", "antigua"], ip=None, user_agent=None,
+    )
+    assert result["news_opt_in"] is True
+    assert result["news_language"] == "ca"
+    assert result["news_topics"] == ["coral", "antigua"]
+    stored = await ctx.users.get_by_id(user.id)
+    assert stored is not None and stored.news_topics == ["coral", "antigua"]

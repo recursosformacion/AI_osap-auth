@@ -33,6 +33,9 @@ async def public_user(ctx: AuthContext, user: User) -> dict[str, Any]:
         "status": user.status.value,
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "nickname_public_consent": user.nickname_public_consent,
+        "news_opt_in": user.news_opt_in,
+        "news_language": user.news_language,
+        "news_topics": user.news_topics,
         "memberships": await membership_infos(ctx, user),
     }
 
@@ -114,6 +117,8 @@ class AdminUpdateUserUseCase:
         self, *, user_id: uuid.UUID, name: str | None, roles: list[str] | None,
         status: str | None, actor: str, ip: str | None, user_agent: str | None,
         nickname: str | None = None, phone: str | None = None,
+        news_opt_in: bool | None = None, news_language: str | None = None,
+        news_topics: list[str] | None = None,
     ) -> dict[str, Any]:
         user = await self._ctx.users.get_by_id(user_id)
         if user is None or user.status == UserStatus.DELETED:
@@ -125,6 +130,14 @@ class AdminUpdateUserUseCase:
         if phone is not None:
             cleaned_phone = phone.strip()
             user.phone = normalize_phone(cleaned_phone) if cleaned_phone else None
+        if news_opt_in is not None:
+            user.news_opt_in = bool(news_opt_in)
+        if news_language is not None:
+            user.news_language = news_language.strip().lower() or "es"
+        if news_topics is not None:
+            user.news_topics = [
+                str(topic).strip() for topic in news_topics if str(topic).strip()
+            ][:20]
         if nickname is not None:
             cleaned = nickname.strip()
             if not cleaned:
@@ -225,3 +238,33 @@ class AdminDeleteUserUseCase:
             context={"deleted_at": deleted_at},
         )
         await self._ctx.events.publish_user_deleted(user.id, deleted_at)
+
+
+class UpdateNewsPreferencesUseCase:
+    """Preferencias de noticias del propio usuario."""
+
+    def __init__(self, ctx: AuthContext) -> None:
+        self._ctx = ctx
+
+    async def execute(
+        self, *, user_id: uuid.UUID, news_opt_in: bool, news_language: str,
+        news_topics: list[str], ip: str | None, user_agent: str | None,
+    ) -> dict[str, Any]:
+        user = await self._ctx.users.get_by_id(user_id)
+        if user is None or user.status == UserStatus.DELETED:
+            raise UserNotFoundError("usuario no encontrado")
+        user.news_opt_in = bool(news_opt_in)
+        user.news_language = (news_language or "es").strip().lower()[:8]
+        user.news_topics = [
+            str(topic).strip() for topic in news_topics if str(topic).strip()
+        ][:20]
+        user.touch()
+        await self._ctx.users.save(user)
+        await audit(
+            self._ctx, event_type="news.preferences_updated", actor=str(user.id),
+            subject=str(user.id), ip=ip, user_agent=user_agent, outcome="success",
+            context={"opt_in": user.news_opt_in, "language": user.news_language,
+                     "topics": user.news_topics},
+        )
+        return await public_user(self._ctx, user)
+
