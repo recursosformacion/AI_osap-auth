@@ -48,6 +48,7 @@ class User:
         nickname_public_consent_at: datetime | None = None,
         news_opt_in: bool = False,
         news_language: str = "es",
+        news_languages: list[str] | None = None,
         news_topics: list[str] | None = None,
         created_at: datetime | None = None,
         updated_at: datetime | None = None,
@@ -73,6 +74,7 @@ class User:
         self.nickname_public_consent_at = nickname_public_consent_at
         self.news_opt_in = news_opt_in
         self.news_language = news_language
+        self.news_languages = list(news_languages or [news_language])
         self.news_topics = list(news_topics or [])
         self.created_at = created_at
         self.updated_at = updated_at
@@ -124,4 +126,3 @@ class User:
             created_at=now,
             updated_at=now,
         )
-

@@ -35,6 +35,10 @@ class GetMeUseCase:
             "status": user.status.value,
             "created_at": user.created_at.isoformat() if user.created_at else None,
             "nickname_public_consent": user.nickname_public_consent,
+            "news_opt_in": user.news_opt_in,
+            "news_language": user.news_language,
+            "news_languages": user.news_languages,
+            "news_topics": user.news_topics,
             "onboarding": {
                 "required": user.onboarding_required(
                     terms_version=settings.terms_version,

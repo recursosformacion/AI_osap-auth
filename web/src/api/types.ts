@@ -49,6 +49,7 @@ export interface UserMe {
   nickname_public_consent?: boolean
   news_opt_in?: boolean
   news_language?: string
+  news_languages?: string[]
   news_topics?: string[]
   memberships?: MembershipInfo[]
 }
@@ -134,4 +135,3 @@ export interface HttpError {
   status: number
   message: string
 }
-

@@ -229,6 +229,7 @@ class UserMeResponse(BaseModel):
     nickname_public_consent: bool = False
     news_opt_in: bool = False
     news_language: str = "es"
+    news_languages: list[str] = Field(default_factory=list)
     news_topics: list[str] = Field(default_factory=list)
     memberships: list[MembershipInfo] = Field(default_factory=list)
 
@@ -319,6 +320,7 @@ class AdminCreateUserRequest(BaseModel):
 class NewsPreferencesRequest(BaseModel):
     news_opt_in: bool = False
     news_language: str = "es"
+    news_languages: list[str] = Field(default_factory=list, max_length=7)
     news_topics: list[str] = Field(default_factory=list, max_length=20)
 
 
@@ -330,6 +332,7 @@ class AdminUpdateUserRequest(BaseModel):
     status: str | None = None
     news_opt_in: bool | None = None
     news_language: str | None = None
+    news_languages: list[str] | None = None
     news_topics: list[str] | None = None
 
 
@@ -337,8 +340,3 @@ class NotifyRecognitionRequest(BaseModel):
     recognition_type: str
     action: str = "granted"
     project: str = "omr"
-
-
-
-
-

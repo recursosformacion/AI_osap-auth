@@ -85,6 +85,7 @@ export const authApi = {
   updateNewsPreferences(input: {
     news_opt_in: boolean
     news_language: string
+    news_languages: string[]
     news_topics: string[]
   }): Promise<UserMe> {
     return httpClient.put<UserMe>('/auth/me/news', input)
@@ -163,4 +164,3 @@ export const authApi = {
     return httpClient.delete<MessageResponse>(`/auth/admin/users/${id}`)
   },
 }
-

@@ -163,3 +163,57 @@ def test_delete_account(app: TestClient) -> None:
     token = r.json()["access_token"]
     r = app.delete("/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 200
+
+def test_news_preferences_are_returned_by_me(app: TestClient) -> None:
+    _register(app)
+    token = app.post(
+        "/auth/login", json={"email": "user@example.com", "password": "s3cret-password"}
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    updated = app.put(
+        "/auth/me/news",
+        json={
+            "news_opt_in": False,
+            "news_language": "en",
+            "news_languages": ["en", "ca"],
+            "news_topics": ["coral"],
+        },
+        headers=headers,
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["news_language"] == "en"
+
+    me = app.get("/auth/me", headers=headers)
+    assert me.status_code == 200
+    assert me.json()["news_opt_in"] is False
+    assert me.json()["news_language"] == "en"
+    assert me.json()["news_topics"] == ["coral"]
+
+
+def test_internal_news_subscribers_requires_service_token(app, monkeypatch) -> None:
+    monkeypatch.setenv("OSAP_INTERNAL_SERVICE_TOKEN", "internal-secret")
+    registration = _register(app)
+    app.post("/auth/verify-email", json={"token": registration["verification_token"]})
+    token = app.post(
+        "/auth/login", json={"email": "user@example.com", "password": "s3cret-password"}
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    app.put(
+        "/auth/me/news",
+        json={
+            "news_opt_in": True,
+            "news_language": "en",
+            "news_languages": ["en"],
+            "news_topics": ["coral"],
+        },
+        headers=headers,
+    )
+    assert app.get("/auth/internal/news-subscribers").status_code == 403
+    rows = app.get(
+        "/auth/internal/news-subscribers",
+        headers={"X-OSAP-Internal-Token": "internal-secret"},
+    )
+    assert rows.status_code == 200
+    assert rows.json()[0]["email"] == "user@example.com"
+    assert rows.json()[0]["news_languages"] == ["en"]

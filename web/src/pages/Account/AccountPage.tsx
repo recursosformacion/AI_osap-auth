@@ -41,6 +41,7 @@ export function AccountPage() {
   const { user, reload } = useAuth()
   const [newsOptIn, setNewsOptIn] = useState(false)
   const [newsLanguage, setNewsLanguage] = useState("es")
+  const [newsLanguages, setNewsLanguages] = useState<string[]>(["es"])
   const [newsTopics, setNewsTopics] = useState<string[]>([])
   const [newsSaving, setNewsSaving] = useState(false)
   const [newsMessage, setNewsMessage] = useState<string | null>(null)
@@ -49,6 +50,7 @@ export function AccountPage() {
     if (!user) return
     setNewsOptIn(Boolean(user.news_opt_in))
     setNewsLanguage(user.news_language ?? "es")
+    setNewsLanguages(user.news_languages?.length ? user.news_languages : [user.news_language ?? "es"])
     setNewsTopics(user.news_topics ?? [])
   }, [user])
 
@@ -58,7 +60,8 @@ export function AccountPage() {
     try {
       await authApi.updateNewsPreferences({
         news_opt_in: newsOptIn,
-        news_language: newsLanguage,
+        news_language: newsLanguages[0] ?? newsLanguage,
+        news_languages: newsLanguages.length ? newsLanguages : [newsLanguage],
         news_topics: newsTopics,
       })
       await reload()
@@ -131,10 +134,10 @@ export function AccountPage() {
           </p>
         )}
         <div className="row">
-          <Link className="btn btn-outline btn-sm" to="/auth/account/entity">
+          <Link className="btn btn-primary btn-sm" to="/auth/account/entity">
             Gestionar entidades
           </Link>
-          <Link className="btn btn-outline btn-sm" to="/auth/account/entity-requests">
+          <Link className="btn btn-primary btn-sm" to="/auth/account/entity-requests">
             Solicitudes de ingreso
           </Link>
         </div>
@@ -144,10 +147,10 @@ export function AccountPage() {
         <h3 className="panel-title">Seguridad</h3>
         <p className="panel-sub">Gestiona tu contraseña y tus sesiones.</p>
         <div className="row">
-          <Link className="btn btn-outline btn-sm" to="/auth/account/password">
+          <Link className="btn btn-primary btn-sm" to="/auth/account/password">
             Cambiar contraseña
           </Link>
-          <Link className="btn btn-outline btn-sm" to="/auth/account/sessions">
+          <Link className="btn btn-primary btn-sm" to="/auth/account/sessions">
             Sesiones activas
           </Link>
         </div>
@@ -157,7 +160,7 @@ export function AccountPage() {
         <h3 className="panel-title">Privacidad y visibilidad</h3>
         <p className="panel-sub">Controla si tu nickname aparece en la lista pública de colaboradores.</p>
         <div className="row">
-          <Link className="btn btn-outline btn-sm" to="/auth/account/privacy">
+          <Link className="btn btn-primary btn-sm" to="/auth/account/privacy">
             Privacidad y visibilidad
           </Link>
         </div>
@@ -166,7 +169,7 @@ export function AccountPage() {
       <section className="panel">
         <h3 className="panel-title">Noticias</h3>
         <p className="panel-sub">
-          Elige si quieres recibir noticias de OSAP, en qué idioma y sobre qué temas.
+          Puedes leer noticias musicales en OSAP sin recibir correos. Si quieres, activa un resumen por correo en tu idioma y sobre tus temas.
         </p>
         <label className="row" style={{ gap: 8 }}>
           <input
@@ -174,42 +177,72 @@ export function AccountPage() {
             checked={newsOptIn}
             onChange={(e) => setNewsOptIn(e.target.checked)}
           />
-          Quiero recibir noticias
+          Recibir un resumen por correo
         </label>
-        <label className="block" style={{ marginTop: 10 }}>
-          Idioma
-          <select
-            value={newsLanguage}
-            onChange={(e) => setNewsLanguage(e.target.value)}
-            style={{ marginLeft: 8 }}
-          >
-            {NEWS_LANGUAGES.map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </select>
-        </label>
-        <div className="row" style={{ flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
-          {NEWS_TOPICS.map(([code, label]) => (
-            <label key={code} className="row" style={{ gap: 4 }}>
-              <input
-                type="checkbox"
-                checked={newsTopics.includes(code)}
-                onChange={(e) =>
-                  setNewsTopics(
-                    e.target.checked
-                      ? [...newsTopics, code]
-                      : newsTopics.filter((topic) => topic !== code),
-                  )
-                }
-              />
-              {label}
-            </label>
-          ))}
-        </div>
+        {newsOptIn ? (
+          <>
+            <div style={{ marginTop: 10 }}>
+              <strong>Idiomas</strong>
+              <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
+                {NEWS_LANGUAGES.map(([value, label]) => (
+                  <label key={value} className="row" style={{ gap: 4 }}>
+                    <input
+                      type="checkbox"
+                      checked={newsLanguages.includes(value)}
+                      onChange={(e) =>
+                        setNewsLanguages(
+                          e.target.checked
+                            ? [...newsLanguages, value]
+                            : newsLanguages.filter((language) => language !== value),
+                        )
+                      }
+                    />
+                    {label}
+                  </label>
+                ))}
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setNewsLanguages(NEWS_LANGUAGES.map(([value]) => value))}
+                >
+                  Todos
+                </button>
+              </div>
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <strong>Temas</strong>
+              <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
+                {NEWS_TOPICS.map(([code, label]) => (
+                  <label key={code} className="row" style={{ gap: 4 }}>
+                    <input
+                      type="checkbox"
+                      checked={newsTopics.includes(code)}
+                      onChange={(e) =>
+                        setNewsTopics(
+                          e.target.checked
+                            ? [...newsTopics, code]
+                            : newsTopics.filter((topic) => topic !== code),
+                        )
+                      }
+                    />
+                    {label}
+                  </label>
+                ))}
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setNewsTopics(NEWS_TOPICS.map(([code]) => code))}
+                >
+                  Marcar todos los temas
+                </button>
+              </div>
+            </div>
+          </>
+        ) : null}
         <div className="row" style={{ marginTop: 10 }}>
           <button
             type="button"
-            className="btn btn-outline btn-sm"
+            className="btn btn-primary btn-sm"
             disabled={newsSaving}
             onClick={() => void saveNews()}
           >
@@ -223,10 +256,10 @@ export function AccountPage() {
         <h3 className="panel-title">Cuenta personal</h3>
         <p className="panel-sub">Cambia tu email o elimina tu cuenta.</p>
         <div className="row">
-          <Link className="btn btn-outline btn-sm" to="/auth/account/phone">
+          <Link className="btn btn-primary btn-sm" to="/auth/account/phone">
             Teléfono (WhatsApp)
           </Link>
-          <Link className="btn btn-outline btn-sm" to="/auth/account/email">
+          <Link className="btn btn-primary btn-sm" to="/auth/account/email">
             Cambiar email
           </Link>
           <Link className="btn btn-danger btn-sm" to="/auth/account/delete">

@@ -35,6 +35,7 @@ async def public_user(ctx: AuthContext, user: User) -> dict[str, Any]:
         "nickname_public_consent": user.nickname_public_consent,
         "news_opt_in": user.news_opt_in,
         "news_language": user.news_language,
+        "news_languages": user.news_languages,
         "news_topics": user.news_topics,
         "memberships": await membership_infos(ctx, user),
     }
@@ -118,7 +119,7 @@ class AdminUpdateUserUseCase:
         status: str | None, actor: str, ip: str | None, user_agent: str | None,
         nickname: str | None = None, phone: str | None = None,
         news_opt_in: bool | None = None, news_language: str | None = None,
-        news_topics: list[str] | None = None,
+        news_languages: list[str] | None = None, news_topics: list[str] | None = None,
     ) -> dict[str, Any]:
         user = await self._ctx.users.get_by_id(user_id)
         if user is None or user.status == UserStatus.DELETED:
@@ -132,11 +133,19 @@ class AdminUpdateUserUseCase:
             user.phone = normalize_phone(cleaned_phone) if cleaned_phone else None
         if news_opt_in is not None:
             user.news_opt_in = bool(news_opt_in)
-        if news_language is not None:
+        if news_languages is not None:
+            normalized = [
+                str(language).strip().lower() for language in news_languages
+                if str(language).strip()
+            ][:7]
+            user.news_languages = normalized or [user.news_language]
+            user.news_language = user.news_languages[0]
+        elif news_language is not None:
             user.news_language = news_language.strip().lower() or "es"
+            user.news_languages = [user.news_language]
         if news_topics is not None:
             user.news_topics = [
-                str(topic).strip() for topic in news_topics if str(topic).strip()
+                str(topic).strip() for topic in (news_topics or []) if str(topic).strip()
             ][:20]
         if nickname is not None:
             cleaned = nickname.strip()
@@ -248,15 +257,22 @@ class UpdateNewsPreferencesUseCase:
 
     async def execute(
         self, *, user_id: uuid.UUID, news_opt_in: bool, news_language: str,
-        news_topics: list[str], ip: str | None, user_agent: str | None,
+        news_languages: list[str] | None = None, news_topics: list[str] | None = None,
+        ip: str | None, user_agent: str | None,
     ) -> dict[str, Any]:
         user = await self._ctx.users.get_by_id(user_id)
         if user is None or user.status == UserStatus.DELETED:
             raise UserNotFoundError("usuario no encontrado")
         user.news_opt_in = bool(news_opt_in)
         user.news_language = (news_language or "es").strip().lower()[:8]
+        normalized_languages = [
+            str(language).strip().lower() for language in (news_languages or [])
+            if str(language).strip()
+        ][:7]
+        user.news_languages = normalized_languages or [user.news_language]
+        user.news_language = user.news_languages[0]
         user.news_topics = [
-            str(topic).strip() for topic in news_topics if str(topic).strip()
+            str(topic).strip() for topic in (news_topics or []) if str(topic).strip()
         ][:20]
         user.touch()
         await self._ctx.users.save(user)
@@ -267,4 +283,3 @@ class UpdateNewsPreferencesUseCase:
                      "topics": user.news_topics},
         )
         return await public_user(self._ctx, user)
-

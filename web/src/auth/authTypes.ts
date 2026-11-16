@@ -23,7 +23,7 @@ export interface AuthUser {
   nickname_public_consent?: boolean
   news_opt_in?: boolean
   news_language?: string
+  news_languages?: string[]
   news_topics?: string[]
   memberships?: MembershipInfo[]
 }
-

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import hmac
+import os
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import JSONResponse
 
 from api.dependencies import (
@@ -311,13 +313,47 @@ async def update_my_news(
 ) -> UserMeResponse:
     result = await UpdateNewsPreferencesUseCase(ctx).execute(
         user_id=uuid.UUID(user["sub"]), news_opt_in=body.news_opt_in,
-        news_language=body.news_language, news_topics=body.news_topics,
+        news_language=body.news_language, news_languages=body.news_languages,
+        news_topics=body.news_topics,
         ip=ip, user_agent=ua,
     )
     return UserMeResponse(**result)
 
 
-@router.get("/entities", response_model=list[EntityListItem])
+def _require_internal_token(token: str | None) -> None:
+    expected = os.environ.get("OSAP_INTERNAL_SERVICE_TOKEN", "").strip()
+    if not expected or not token or not hmac.compare_digest(token, expected):
+        raise HTTPException(status_code=403, detail="token interno inválido")
+
+
+@router.get("/internal/news-subscribers")
+async def internal_news_subscribers(
+    ctx: AuthContext = Depends(get_ctx),
+    x_osap_internal_token: str | None = Header(default=None),
+) -> list[dict]:
+    """Suscriptores con consentimiento explícito, para el cron de OSAP.
+
+    No expone la lista completa ni permite administración: solo usuarios activos con
+    `news_opt_in`. El token es de servicio y no sustituye la sesión del usuario.
+    """
+    _require_internal_token(x_osap_internal_token)
+    users = await AdminListUsersUseCase(ctx).execute()
+    return [
+        {
+            "user_id": user["user_id"],
+            "email": user["email"],
+            "name": user.get("name"),
+            "news_language": user.get("news_language") or "es",
+            "news_languages": user.get("news_languages") or [],
+            "news_topics": user.get("news_topics") or [],
+        }
+        for user in users
+        if user.get("news_opt_in") and user.get("status") == "active" and user.get("email")
+    ]
+
+
+@router.get("/entities",
+    response_model=list[EntityListItem])
 async def list_entities(
     ctx: AuthContext = Depends(get_ctx),
     user: dict = Depends(current_user),
@@ -754,7 +790,7 @@ async def admin_update_user(
         user_id=uuid.UUID(user_id), name=body.name, nickname=body.nickname,
         phone=body.phone, roles=body.roles, status=body.status,
         news_opt_in=body.news_opt_in, news_language=body.news_language,
-        news_topics=body.news_topics,
+        news_languages=body.news_languages, news_topics=body.news_topics,
         actor=user["sub"], ip=ip, user_agent=ua,
     )
     return UserMeResponse(**result)
@@ -788,6 +824,3 @@ async def admin_delete_user(
         user_id=uuid.UUID(user_id), actor=user["sub"], ip=ip, user_agent=ua
     )
     return JSONResponse({"message": "usuario eliminado"})
-
-
-

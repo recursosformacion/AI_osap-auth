@@ -45,6 +45,10 @@ def _from_row(row: dict[str, Any]) -> User:
         nickname_public_consent_at=row.get("nickname_public_consent_at"),
         news_opt_in=bool(row.get("news_opt_in") or False),
         news_language=row.get("news_language") or "es",
+        news_languages=(
+            json.loads(row.get("news_languages_json") or "[]")
+            or [row.get("news_language") or "es"]
+        ),
         news_topics=json.loads(row.get("news_topics_json") or "[]"),
         created_at=row["created_at"],
         updated_at=row["updated_at"],
@@ -125,9 +129,10 @@ class SqlUserRepository(UserRepository):
                        roles, status, key_version, name, nickname, nickname_norm, phone,
                        terms_version, terms_accepted_at, privacy_version, privacy_accepted_at,
                        onboarding_completed_at, nickname_public_consent, nickname_public_consent_at,
-                       news_opt_in, news_language, news_topics_json,
+                       news_opt_in, news_language, news_languages_json, news_topics_json,
                        created_at, updated_at)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,
+                            %s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                     ON DUPLICATE KEY UPDATE
                       email_lookup=VALUES(email_lookup),
                       email_cipher=VALUES(email_cipher),
@@ -149,6 +154,7 @@ class SqlUserRepository(UserRepository):
                       nickname_public_consent_at=VALUES(nickname_public_consent_at),
                       news_opt_in=VALUES(news_opt_in),
                       news_language=VALUES(news_language),
+                      news_languages_json=VALUES(news_languages_json),
                       news_topics_json=VALUES(news_topics_json),
                       updated_at=VALUES(updated_at)
                     """,
@@ -174,6 +180,7 @@ class SqlUserRepository(UserRepository):
                         user.nickname_public_consent_at,
                         1 if user.news_opt_in else 0,
                         user.news_language,
+                        json.dumps(user.news_languages, ensure_ascii=False),
                         json.dumps(user.news_topics, ensure_ascii=False),
                         user.created_at or now,
                         updated,
@@ -183,4 +190,3 @@ class SqlUserRepository(UserRepository):
             if "uq_users_nickname_norm" in str(exc):
                 raise NicknameTakenError("nickname no disponible") from exc
             raise
-
