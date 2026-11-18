@@ -34,6 +34,12 @@ class UserRepository(ABC):
         """¿Está tomado ese `nickname_norm` por OTRO usuario? (excluye el propio)."""
 
     @abstractmethod
+    async def set_avatar(self, user_id: uuid.UUID, data: str | None) -> None: ...
+
+    @abstractmethod
+    async def get_avatar(self, user_id: uuid.UUID) -> str | None: ...
+
+    @abstractmethod
     async def list_all(self) -> list[User]: ...
 
     @abstractmethod

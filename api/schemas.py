@@ -232,6 +232,7 @@ class UserMeResponse(BaseModel):
     news_languages: list[str] = Field(default_factory=list)
     news_topics: list[str] = Field(default_factory=list)
     memberships: list[MembershipInfo] = Field(default_factory=list)
+    avatar_url: str | None = None
 
 
 class OnboardingRequest(BaseModel):
@@ -249,6 +250,10 @@ class OnboardingRequest(BaseModel):
     entity_kind: str | None = Field(default=None, max_length=32)
     entity_email: str | None = Field(default=None, max_length=254)
     phone: str | None = Field(default=None, max_length=32)
+
+
+class UserAvatarRequest(BaseModel):
+    data: str
 
 
 class UpdatePhoneRequest(BaseModel):
@@ -340,3 +345,5 @@ class NotifyRecognitionRequest(BaseModel):
     recognition_type: str
     action: str = "granted"
     project: str = "omr"
+
+

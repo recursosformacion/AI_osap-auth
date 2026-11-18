@@ -39,6 +39,7 @@ class User:
         nickname: str | None = None,
         nickname_norm: str | None = None,
         phone: str | None = None,
+        avatar_data: str | None = None,
         terms_version: str | None = None,
         terms_accepted_at: datetime | None = None,
         privacy_version: str | None = None,
@@ -65,6 +66,7 @@ class User:
         self.nickname = nickname
         self.nickname_norm = nickname_norm
         self.phone = phone
+        self.avatar_data = avatar_data
         self.terms_version = terms_version
         self.terms_accepted_at = terms_accepted_at
         self.privacy_version = privacy_version
@@ -126,3 +128,4 @@ class User:
             created_at=now,
             updated_at=now,
         )
+

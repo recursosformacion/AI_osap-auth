@@ -61,6 +61,16 @@ def make_rsa_keys() -> tuple[str, str]:
 class FakeUserRepository(UserRepository):
     def __init__(self) -> None:
         self._users: dict[str, User] = {}
+        self._avatars: dict[str, str] = {}
+
+    async def set_avatar(self, user_id: uuid.UUID, data: str | None) -> None:
+        if data is None:
+            self._avatars.pop(str(user_id), None)
+        else:
+            self._avatars[str(user_id)] = data
+
+    async def get_avatar(self, user_id: uuid.UUID) -> str | None:
+        return self._avatars.get(str(user_id))
 
     async def get_by_id(self, user_id: uuid.UUID) -> User | None:
         return self._users.get(str(user_id))

@@ -24,6 +24,13 @@ class GetMeUseCase:
             raise UnauthorizedError("usuario no encontrado")
         email = self._ctx.email_protector.decrypt(user.email_cipher)
         settings = self._ctx.settings
+        base = settings.public_base_url.rstrip("/")
+        prefix = settings.public_path_prefix.rstrip("/")
+        avatar_url = (
+            f"{base}{prefix}/auth/users/{user.id}/avatar"
+            if await self._ctx.users.get_avatar(user.id)
+            else None
+        )
         return {
             "user_id": str(user.id),
             "email": email,
@@ -58,6 +65,7 @@ class GetMeUseCase:
                 "privacy_version_current": settings.privacy_version,
             },
             "memberships": await membership_infos(self._ctx, user),
+            "avatar_url": avatar_url,
         }
 
 
@@ -198,3 +206,4 @@ class ConfirmChangeEmailUseCase:
             outcome="confirmed",
             context={},
         )
+

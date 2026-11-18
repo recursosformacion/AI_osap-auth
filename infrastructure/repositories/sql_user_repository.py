@@ -106,6 +106,19 @@ class SqlUserRepository(UserRepository):
             rows = await cur.fetchall()
         return [_from_row(r) for r in rows]
 
+    async def set_avatar(self, user_id: uuid.UUID, data: str | None) -> None:
+        async with cursor(self._pool) as cur:
+            await cur.execute(
+                "UPDATE users SET avatar_data=%s, updated_at=%s WHERE id=%s",
+                (data, datetime.now(UTC), str(user_id)),
+            )
+
+    async def get_avatar(self, user_id: uuid.UUID) -> str | None:
+        async with cursor(self._pool) as cur:
+            await cur.execute("SELECT avatar_data FROM users WHERE id=%s", (str(user_id),))
+            row = await cur.fetchone()
+        return row["avatar_data"] if row else None
+
     async def list_public(self) -> list[User]:
         async with cursor(self._pool) as cur:
             await cur.execute(
@@ -190,3 +203,5 @@ class SqlUserRepository(UserRepository):
             if "uq_users_nickname_norm" in str(exc):
                 raise NicknameTakenError("nickname no disponible") from exc
             raise
+
+

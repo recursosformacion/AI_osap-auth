@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import hmac
 import os
 import uuid
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Response
 from fastapi.responses import JSONResponse
 
 from api.dependencies import (
@@ -46,6 +48,7 @@ from api.schemas import (
     UpdateMeRequest,
     UpdateMyEntityRequest,
     UpdatePhoneRequest,
+    UserAvatarRequest,
     UserMeResponse,
     VerifyEmailRequest,
 )
@@ -301,6 +304,56 @@ async def me(
     user: dict = Depends(current_user),
 ) -> UserMeResponse:
     return UserMeResponse(**await GetMeUseCase(ctx).execute(user_id=uuid.UUID(user["sub"])))
+
+
+@router.patch("/me/avatar", response_model=UserMeResponse)
+async def update_my_avatar(
+    body: UserAvatarRequest,
+    ctx: AuthContext = Depends(get_ctx),
+    user: dict = Depends(current_user),
+) -> UserMeResponse:
+    raw = body.data.strip()
+    if raw and not raw.startswith("data:image/"):
+        raise HTTPException(status_code=400, detail="formato de imagen no válido")
+    try:
+        b64 = raw.split(",", 1)[1] if "," in raw else ""
+        content = base64.b64decode(b64, validate=True) if b64 else b""
+    except (ValueError, binascii.Error):
+        raise HTTPException(status_code=400, detail="imagen no válida") from None
+    if content and len(content) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="la imagen supera 2 MB")
+    await ctx.users.set_avatar(uuid.UUID(user["sub"]), raw or None)
+    return UserMeResponse(**await GetMeUseCase(ctx).execute(user_id=uuid.UUID(user["sub"])))
+
+
+@router.delete("/me/avatar", response_model=UserMeResponse)
+async def delete_my_avatar(
+    ctx: AuthContext = Depends(get_ctx),
+    user: dict = Depends(current_user),
+) -> UserMeResponse:
+    await ctx.users.set_avatar(uuid.UUID(user["sub"]), None)
+    return UserMeResponse(**await GetMeUseCase(ctx).execute(user_id=uuid.UUID(user["sub"])))
+
+
+@router.get("/users/{user_id}/avatar")
+async def get_user_avatar(
+    user_id: uuid.UUID,
+    ctx: AuthContext = Depends(get_ctx),
+) -> Response:
+    data = await ctx.users.get_avatar(user_id)
+    if not data or "," not in data:
+        return Response(status_code=404)
+    header, b64 = data.split(",", 1)
+    try:
+        content = base64.b64decode(b64, validate=True)
+    except (ValueError, binascii.Error):
+        return Response(status_code=404)
+    media_type = header[5:].split(";", 1)[0] or "image/jpeg"
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Cache-Control": "public, max-age=300"},
+    )
 
 
 @router.put("/me/news", response_model=UserMeResponse)
