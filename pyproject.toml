@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "osap-auth"
-version = "6.2.3"
+version = "6.3.0"
 description = "Servicio de identidad y autenticacion para OSAP (Auth API v1.0)."
 license = {text = "GPL-3.0-only"}
 requires-python = ">=3.11"
