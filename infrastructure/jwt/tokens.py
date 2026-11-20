@@ -14,6 +14,23 @@ from infrastructure.jwt.jwks import jwk_from_public_key
 
 TOKEN_TYPES = ("access", "service")
 
+
+def _verify_token_kind(
+    payload: dict[str, Any], *, expected_typ: str, expected_use: str, error: str
+) -> None:
+    """Validate token-kind claims without allowing contradictory discriminators.
+
+    Older tokens may contain only one of the two claims. When both are present,
+    both must agree with the expected token kind.
+    """
+    if "typ" in payload and payload["typ"] != expected_typ:
+        raise jwt.InvalidTokenError(error)
+    if "token_use" in payload and payload["token_use"] != expected_use:
+        raise jwt.InvalidTokenError(error)
+    if payload.get("typ") != expected_typ and payload.get("token_use") != expected_use:
+        raise jwt.InvalidTokenError(error)
+
+
 # Claims que NO deben aparecer nunca en un access token (PII o secretos).
 _FORBIDDEN_ACCESS_CLAIMS = ("email", "email_lookup", "email_cipher", "name", "sub_id", "password")
 
@@ -103,17 +120,21 @@ class PyJwtTokenProvider(TokenProvider):
 
     def verify_access_token(self, token: str, *, expected_audience: str) -> dict[str, Any]:
         payload = self._decode(token, expected_audience)
-        # token_use es el discriminador canónico; `typ` se mantiene por retrocompatibilidad.
-        if payload.get("typ") != "access" and payload.get("token_use") != "user":
-            raise jwt.InvalidTokenError("token no es de acceso")
+        # Acepta tokens históricos con un único discriminador, pero nunca claims contradictorios.
+        _verify_token_kind(
+            payload, expected_typ="access", expected_use="user",
+            error="token no es de acceso",
+        )
         if any(claim in payload for claim in _FORBIDDEN_ACCESS_CLAIMS):
             raise jwt.InvalidTokenError("token contiene PII prohibida")
         return payload
 
     def verify_service_token(self, token: str, *, expected_audience: str) -> dict[str, Any]:
         payload = self._decode(token, expected_audience)
-        if payload.get("typ") != "service" and payload.get("token_use") != "service":
-            raise jwt.InvalidTokenError("token no es de servicio")
+        _verify_token_kind(
+            payload, expected_typ="service", expected_use="service",
+            error="token no es de servicio",
+        )
         return payload
 
     def jwks(self) -> dict[str, Any]:
