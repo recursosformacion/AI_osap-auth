@@ -191,3 +191,71 @@ async def test_client_without_scope_cannot_obtain_storage_write() -> None:
             client_id=str(client.client_id), client_secret=secret,
             requested_scope="storage:write", ip=None, user_agent=None,
         )
+
+
+def _resign_token(ctx, token: str, *, remove: tuple[str, ...] = (), **updates: str) -> str:
+    payload = jwt.decode(
+        token,
+        ctx.token_provider._keys.public_key,  # noqa: SLF001
+        algorithms=["RS256"],
+        audience="osap-api",
+    )
+    for claim in remove:
+        payload.pop(claim, None)
+    payload.update(updates)
+    return jwt.encode(
+        payload,
+        ctx.token_provider._keys.private_key,  # noqa: SLF001
+        algorithm="RS256",
+        headers=jwt.get_unverified_header(token),
+    )
+
+
+def test_verify_access_token_rejects_conflicting_token_use() -> None:
+    ctx, _ = make_context()
+    token = ctx.token_provider.issue_access_token(
+        user_id=uuid.uuid4(), session_id=uuid.uuid4(), roles=["user"],
+        email_verified=True, scope="openid", ttl_seconds=900,
+    )
+    conflicting = _resign_token(ctx, token, token_use="service")
+    with pytest.raises(jwt.InvalidTokenError):
+        ctx.token_provider.verify_access_token(conflicting, expected_audience="osap-api")
+
+
+def test_verify_service_token_rejects_conflicting_typ() -> None:
+    ctx, _ = make_context()
+    client = ServiceClient.new(
+        client_secret_hash=ctx.token_hasher.hash("s3cret"), scopes=["storage:read"]
+    )
+    token = ctx.token_provider.issue_service_token(
+        client=client, scope="storage:read", ttl_seconds=300
+    )
+    conflicting = _resign_token(ctx, token, typ="access")
+    with pytest.raises(jwt.InvalidTokenError):
+        ctx.token_provider.verify_service_token(conflicting, expected_audience="osap-api")
+
+
+def test_verify_access_token_accepts_legacy_typ_only() -> None:
+    ctx, _ = make_context()
+    token = ctx.token_provider.issue_access_token(
+        user_id=uuid.uuid4(), session_id=uuid.uuid4(), roles=["user"],
+        email_verified=True, scope="openid", ttl_seconds=900,
+    )
+    legacy = _resign_token(ctx, token, remove=("token_use",))
+    assert ctx.token_provider.verify_access_token(
+        legacy, expected_audience="osap-api"
+    )["typ"] == "access"
+
+
+def test_verify_service_token_accepts_legacy_token_use_only() -> None:
+    ctx, _ = make_context()
+    client = ServiceClient.new(
+        client_secret_hash=ctx.token_hasher.hash("s3cret"), scopes=["storage:read"]
+    )
+    token = ctx.token_provider.issue_service_token(
+        client=client, scope="storage:read", ttl_seconds=300
+    )
+    legacy = _resign_token(ctx, token, remove=("typ",))
+    assert ctx.token_provider.verify_service_token(
+        legacy, expected_audience="osap-api"
+    )["token_use"] == "service"
