@@ -42,6 +42,8 @@ Copia `config.example.yaml` a `config.yaml` y `env.example` a `.env`, y rellena:
 
 # 4. Migraciones
 
+> **Producción — precondición para la revisión 0020:** antes de ejecutar `alembic upgrade head`, comprobar en `osap_auth` que `alembic_version.version_num = '0019_nickname_unique'` y que `users.avatar_data` no existe. La revisión `0020_user_avatar` ejecuta `ALTER TABLE users ADD COLUMN avatar_data TEXT NULL`; no es idempotente si la columna ya existe. Si la columna existe pero Alembic sigue en 0019, detenerse y reconciliar el estado del esquema y el historial Alembic antes de continuar. Tras la actualización, verificar versión `0020_user_avatar` y una columna `avatar_data` nullable. No ejecutar downgrade como rollback de producción sin evaluar primero los datos de avatar.
+
 ```powershell
 $env:OSAP_AUTH_DB_PASSWORD="<clave>"
 .\.venv\Scripts\python -m infrastructure.cli migrate
