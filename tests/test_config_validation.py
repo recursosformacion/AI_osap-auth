@@ -203,3 +203,13 @@ def test_placeholders_secret_se_resuelven_desde_entorno(
     assert settings.crypto.email_aead_key_b64 == values["OSAP_AUTH_EMAIL_AEAD_KEY"]
     assert settings.crypto.token_hmac_pepper == values["OSAP_AUTH_TOKEN_PEPPER"]
     assert settings.smtp_host == values["OSAP_AUTH_SMTP_HOST"]
+
+
+
+def test_placeholder_secret_no_resuelto_impide_arranque(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    data = _copy()
+    data["crypto"]["email_hmac_pepper"] = "${OSAP_AUTH_EMAIL_PEPPER}"  # type: ignore[index]
+    with pytest.raises(SystemExit):
+        validate_startup_config(_write(tmp_path, data))
