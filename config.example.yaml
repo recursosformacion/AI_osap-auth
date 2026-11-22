@@ -19,6 +19,7 @@ database:
 
 issuer: https://auth.osap
 audience: osap-api
+public_base_url: http://127.0.0.1:8200
 access_token_ttl_seconds: 900         # 15 min
 refresh_token_ttl_seconds: 2592000    # 30 días
 verification_token_ttl_hours: 24
