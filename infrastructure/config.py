@@ -299,17 +299,17 @@ class Settings:
         smtp = data.get("smtp", {})
         if isinstance(smtp, dict):
             if "host" in smtp and not os.environ.get("OSAP_AUTH_SMTP_HOST"):
-                self.smtp_host = str(smtp["host"])
+                self.smtp_host = str(_resolve_env_placeholder(smtp["host"]) or "")
             if "port" in smtp and not os.environ.get("OSAP_AUTH_SMTP_PORT"):
                 self.smtp_port = int(smtp["port"])
             if "username" in smtp and not (
                 os.environ.get("OSAP_AUTH_SMTP_USERNAME") or os.environ.get("OSAP_AUTH_SMTP_USER")
             ):
-                self.smtp_username = str(smtp["username"])
+                self.smtp_username = str(_resolve_env_placeholder(smtp["username"]) or "")
             if "password" in smtp and not os.environ.get("OSAP_AUTH_SMTP_PASSWORD"):
-                self.smtp_password = str(smtp["password"])
+                self.smtp_password = str(_resolve_env_placeholder(smtp["password"]) or "")
             if "from_address" in smtp and not os.environ.get("OSAP_AUTH_SMTP_FROM"):
-                self.smtp_from_address = str(smtp["from_address"])
+                self.smtp_from_address = str(_resolve_env_placeholder(smtp["from_address"]) or "")
             if "ssl" in smtp and not os.environ.get("OSAP_AUTH_SMTP_SSL"):
                 self.smtp_use_ssl = _as_bool(smtp["ssl"], self.smtp_use_ssl)
             if "starttls" in smtp and not os.environ.get("OSAP_AUTH_SMTP_STARTTLS"):
@@ -319,16 +319,26 @@ class Settings:
         self._yaml_data = data
 
         # Config no secreta de DB se solapa con variables de entorno.
-        if "host" in dbt:
-            os.environ.setdefault("OSAP_AUTH_DB_HOST", str(dbt["host"]))
-        if "port" in dbt:
-            os.environ.setdefault("OSAP_AUTH_DB_PORT", str(dbt["port"]))
-        if "name" in dbt:
-            os.environ.setdefault("OSAP_AUTH_DB_NAME", str(dbt["name"]))
-        if "user" in dbt:
-            os.environ.setdefault("OSAP_AUTH_DB_USER", str(dbt["user"]))
-        if "password" in dbt:
-            os.environ.setdefault("OSAP_AUTH_DB_PASSWORD", str(dbt["password"]))
+        if "host" in dbt and not os.environ.get("OSAP_AUTH_DB_HOST"):
+            value = _resolve_env_placeholder(dbt["host"])
+            if value not in (None, ""):
+                os.environ["OSAP_AUTH_DB_HOST"] = str(value)
+        if "port" in dbt and not os.environ.get("OSAP_AUTH_DB_PORT"):
+            value = _resolve_env_placeholder(dbt["port"])
+            if value not in (None, ""):
+                os.environ["OSAP_AUTH_DB_PORT"] = str(value)
+        if "name" in dbt and not os.environ.get("OSAP_AUTH_DB_NAME"):
+            value = _resolve_env_placeholder(dbt["name"])
+            if value not in (None, ""):
+                os.environ["OSAP_AUTH_DB_NAME"] = str(value)
+        if "user" in dbt and not os.environ.get("OSAP_AUTH_DB_USER"):
+            value = _resolve_env_placeholder(dbt["user"])
+            if value not in (None, ""):
+                os.environ["OSAP_AUTH_DB_USER"] = str(value)
+        if "password" in dbt and not os.environ.get("OSAP_AUTH_DB_PASSWORD"):
+            value = _resolve_env_placeholder(dbt["password"])
+            if value not in (None, ""):
+                os.environ["OSAP_AUTH_DB_PASSWORD"] = str(value)
 
         for attr in (
             "register_per_minute",
@@ -364,7 +374,9 @@ class Settings:
             ("jwt_kid", "OSAP_AUTH_JWT_KID"),
         ):
             if field in crypto and not os.environ.get(env):
-                setattr(self.crypto, field, crypto[field])
+                value = _resolve_env_placeholder(crypto[field])
+                if value not in (None, ""):
+                    setattr(self.crypto, field, str(value))
 
         previous = crypto.get("jwt_previous_public_keys") if isinstance(crypto, dict) else None
         if (
