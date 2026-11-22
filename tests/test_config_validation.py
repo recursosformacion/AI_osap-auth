@@ -30,7 +30,7 @@ _VALID: dict[str, object] = {
         "jwt_public_key": "-----BEGIN",
     },
     "smtp": {"host": "smtp.example.test", "from_address": "no-reply@example.test"},
-    "key_version": "v1",
+    "key_version": 1,
 }
 
 
