@@ -45,7 +45,13 @@ _REQUIRED_ENV_KEYS: dict[tuple[str, str], str] = {
     ("smtp", "host"): "OSAP_AUTH_SMTP_HOST",
     ("smtp", "from_address"): "OSAP_AUTH_SMTP_FROM",
 }
-_REQUIRED_TOP_LEVEL: tuple[str, ...] = ("key_version",)
+_REQUIRED_TOP_LEVEL: tuple[str, ...] = ("issuer", "audience", "public_base_url", "key_version")
+_REQUIRED_TOP_LEVEL_ENV_KEYS: dict[str, str] = {
+    "issuer": "OSAP_AUTH_ISSUER",
+    "audience": "OSAP_AUTH_AUDIENCE",
+    "public_base_url": "OSAP_AUTH_PUBLIC_BASE_URL",
+    "key_version": "OSAP_AUTH_KEY_VERSION",
+}
 
 
 def _resolve_env_placeholder(value: Any) -> Any:
@@ -85,8 +91,11 @@ def missing_required_keys(data: dict[str, Any]) -> list[str]:
             if value is None or (isinstance(value, str) and not value.strip()):
                 missing.append(f"{section}.{key}")
     for key in _REQUIRED_TOP_LEVEL:
-        value = data.get(key)
+        value = _resolve_env_placeholder(data.get(key))
+        env_name = _REQUIRED_TOP_LEVEL_ENV_KEYS.get(key)
         if value is None or (isinstance(value, str) and not value.strip()):
+            value = os.environ.get(env_name, "") if env_name else ""
+        if value is None or (isinstance(value, str) and not str(value).strip()):
             missing.append(key)
     return missing
 
@@ -102,6 +111,17 @@ def validate_startup_config(config_path: Path | None = None) -> None:
     if path.exists():
         data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     missing = missing_required_keys(data)
+    if resolve_config_env(data) == "production":
+        issuer = _resolve_env_placeholder(
+            os.environ.get("OSAP_AUTH_ISSUER") or data.get("issuer", "")
+        )
+        public_base_url = _resolve_env_placeholder(
+            os.environ.get("OSAP_AUTH_PUBLIC_BASE_URL") or data.get("public_base_url", "")
+        )
+        if not str(issuer or "").startswith("https://"):
+            missing.append("issuer (debe usar HTTPS en producción)")
+        if not str(public_base_url or "").startswith("https://"):
+            missing.append("public_base_url (debe usar HTTPS en producción)")
     if resolve_config_env(data) == "production" and missing:
         raise SystemExit(
             f"[osap-auth] configuración inválida ({path}): faltan {', '.join(missing)}"
@@ -173,8 +193,8 @@ class Settings:
     def __init__(self, *, env: str = "development", config_file: Path | None = None) -> None:
         self.env = env
         self.debug = False
-        self.issuer: str = "https://auth.osap"
-        self.audience: str = "osap-api"
+        self.issuer: str = os.environ.get("OSAP_AUTH_ISSUER", "https://auth.osap")
+        self.audience: str = os.environ.get("OSAP_AUTH_AUDIENCE", "osap-api")
         self.access_token_ttl_seconds: int = 900
         self.refresh_token_ttl_seconds: int = 2_592_000
         self.verification_token_ttl_hours: float = 24.0
@@ -185,7 +205,7 @@ class Settings:
         self.rate_limit = RateLimitConfig()
         self.server_host: str = "127.0.0.1"
         self.server_port: int = 8200
-        self.public_base_url: str = "http://127.0.0.1:8200"
+        self.public_base_url: str = os.environ.get("OSAP_AUTH_PUBLIC_BASE_URL", "http://127.0.0.1:8200")
         self.public_path_prefix: str = ""
         self.web_base_url: str = "http://127.0.0.1:5173"
         # Base con la que se FIRMA el pie de los correos (la plataforma/app, no el dominio
@@ -237,8 +257,8 @@ class Settings:
         rl = data.get("rate_limit", {})
         self.env = app.get("env", self.env)
         self.debug = bool(app.get("debug", self.debug))
-        self.issuer = data.get("issuer", self.issuer)
-        self.audience = data.get("audience", self.audience)
+        self.issuer = str(_resolve_env_placeholder(os.environ.get("OSAP_AUTH_ISSUER") or data.get("issuer", self.issuer)) or self.issuer)
+        self.audience = str(_resolve_env_placeholder(os.environ.get("OSAP_AUTH_AUDIENCE") or data.get("audience", self.audience)) or self.audience)
         self.access_token_ttl_seconds = int(
             data.get("access_token_ttl_seconds", self.access_token_ttl_seconds)
         )
@@ -251,11 +271,11 @@ class Settings:
         self.password_reset_token_ttl_hours = float(
             data.get("password_reset_token_ttl_hours", self.password_reset_token_ttl_hours)
         )
-        self.key_version = int(data.get("key_version", self.key_version))
+        self.key_version = int(_resolve_env_placeholder(os.environ.get("OSAP_AUTH_KEY_VERSION") or data.get("key_version", self.key_version)) or self.key_version)
         self.audit_retention_days = int(data.get("audit_retention_days", self.audit_retention_days))
         self.server_host = server.get("host", self.server_host)
         self.server_port = int(server.get("port", self.server_port))
-        self.public_base_url = data.get("public_base_url", self.public_base_url)
+        self.public_base_url = str(_resolve_env_placeholder(os.environ.get("OSAP_AUTH_PUBLIC_BASE_URL") or data.get("public_base_url", self.public_base_url)) or self.public_base_url)
         self.public_path_prefix = data.get("public_path_prefix", self.public_path_prefix)
         self.web_base_url = data.get("web_base_url", self.web_base_url)
         self.site_base_url = data.get("site_base_url", self.site_base_url)
