@@ -19,8 +19,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 logger = logging.getLogger(__name__)
 
-# Claves obligatorias en producción (fail-closed). Nombres reales del config.yaml de
-# osap-auth (`database.*`, `crypto.jwt_*`) y `key_version` en la raíz.
+# Claves obligatorias en producción (fail-closed): DB, criptografía de identidad/cifrado,
+# JWT, SMTP de verificación y `key_version`.
 _REQUIRED_KEYS: dict[str, tuple[str, ...]] = {
     "database": ("host", "name", "user", "password"),
     "crypto": (
