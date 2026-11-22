@@ -25,3 +25,13 @@ The project provides the authentication foundation used by other OSAP services. 
 ## Development
 
 Install the project and development dependencies according to the repository's packaging configuration. Use the repository's test and lint configuration before proposing changes. Deployment secrets and environment-specific credentials must be supplied through configuration, not committed to source control.
+
+
+## Production configuration
+
+Use [`config.production.example.yaml`](config.production.example.yaml) as the production
+template and copy it to `config.yaml` on the server. The issuer is the root Auth origin
+(`https://auth.openmusicrepository.com`); the public base URL includes the reverse-proxy
+prefix (`/auth-api`). Supply every `${OSAP_AUTH_*}` placeholder through the service
+environment or secret manager. Production startup rejects unresolved placeholders, missing
+cryptographic keys, missing SMTP host, and non-HTTPS public issuer/URL settings.
