@@ -248,6 +248,7 @@ class Settings:
         self.database = DatabaseConfig()
         self.crypto = CryptoConfig()
         self._apply_yaml(self._yaml_data)
+        self._apply_crypto_env()
 
     def _load_yaml(self, path: Path) -> None:
         data: dict[str, Any] = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
@@ -369,6 +370,21 @@ class Settings:
         ):
             if attr in rl:
                 setattr(self.rate_limit, attr, int(rl[attr]))
+
+    def _apply_crypto_env(self) -> None:
+        """Carga los secretos de cripto desde las variables de entorno documentadas.
+
+        `CryptoConfig` (pydantic) deriva nombres como `OSAP_AUTH_EMAIL_HMAC_PEPPER`, pero
+        la convención desplegada usa `OSAP_AUTH_EMAIL_PEPPER`, `OSAP_AUTH_EMAIL_AEAD_KEY`
+        y `OSAP_AUTH_TOKEN_PEPPER`. Se aplican aquí para que los secretos lleguen al
+        servicio con prioridad sobre el YAML.
+        """
+        for (section, field), env_name in _REQUIRED_ENV_KEYS.items():
+            if section != "crypto":
+                continue
+            value = os.environ.get(env_name)
+            if value:
+                setattr(self.crypto, field, value)
 
     def _apply_yaml(self, data: dict[str, Any]) -> None:
         """Aplica db/crypto desde YAML (dev). Los valores de YAML tienen prioridad
