@@ -23,9 +23,39 @@ logger = logging.getLogger(__name__)
 # osap-auth (`database.*`, `crypto.jwt_*`) y `key_version` en la raíz.
 _REQUIRED_KEYS: dict[str, tuple[str, ...]] = {
     "database": ("host", "name", "user", "password"),
-    "crypto": ("jwt_private_key", "jwt_public_key"),
+    "crypto": (
+        "email_hmac_pepper",
+        "email_aead_key_b64",
+        "token_hmac_pepper",
+        "jwt_private_key",
+        "jwt_public_key",
+    ),
+    "smtp": ("host", "from_address"),
+}
+_REQUIRED_ENV_KEYS: dict[tuple[str, str], str] = {
+    ("database", "host"): "OSAP_AUTH_DB_HOST",
+    ("database", "name"): "OSAP_AUTH_DB_NAME",
+    ("database", "user"): "OSAP_AUTH_DB_USER",
+    ("database", "password"): "OSAP_AUTH_DB_PASSWORD",
+    ("crypto", "email_hmac_pepper"): "OSAP_AUTH_EMAIL_PEPPER",
+    ("crypto", "email_aead_key_b64"): "OSAP_AUTH_EMAIL_AEAD_KEY",
+    ("crypto", "token_hmac_pepper"): "OSAP_AUTH_TOKEN_PEPPER",
+    ("crypto", "jwt_private_key"): "OSAP_AUTH_JWT_PRIVATE_KEY",
+    ("crypto", "jwt_public_key"): "OSAP_AUTH_JWT_PUBLIC_KEY",
+    ("smtp", "host"): "OSAP_AUTH_SMTP_HOST",
+    ("smtp", "from_address"): "OSAP_AUTH_SMTP_FROM",
 }
 _REQUIRED_TOP_LEVEL: tuple[str, ...] = ("key_version",)
+
+
+def _resolve_env_placeholder(value: Any) -> Any:
+    """Resuelve un valor YAML exacto ${ENV_VAR}; nunca acepta el placeholder literal."""
+    if not isinstance(value, str):
+        return value
+    candidate = value.strip()
+    if candidate.startswith("${") and candidate.endswith("}") and len(candidate) > 3:
+        return os.environ.get(candidate[2:-1], "")
+    return value
 
 
 def resolve_config_env(data: dict[str, Any]) -> str:
@@ -42,12 +72,16 @@ def resolve_config_env(data: dict[str, Any]) -> str:
 
 
 def missing_required_keys(data: dict[str, Any]) -> list[str]:
-    """Devuelve las claves obligatorias ausentes o vacías (`seccion.clave`)."""
+    """Devuelve claves obligatorias ausentes, vacías o con placeholders sin resolver."""
     missing: list[str] = []
     for section, keys in _REQUIRED_KEYS.items():
         block = data.get(section)
         for key in keys:
-            value = block.get(key) if isinstance(block, dict) else None
+            raw = block.get(key) if isinstance(block, dict) else None
+            value = _resolve_env_placeholder(raw)
+            env_name = _REQUIRED_ENV_KEYS.get((section, key))
+            if value is None or (isinstance(value, str) and not value.strip()):
+                value = os.environ.get(env_name, "") if env_name else ""
             if value is None or (isinstance(value, str) and not value.strip()):
                 missing.append(f"{section}.{key}")
     for key in _REQUIRED_TOP_LEVEL:
