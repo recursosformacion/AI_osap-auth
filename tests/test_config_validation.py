@@ -21,6 +21,9 @@ from infrastructure.config import (
 
 _VALID: dict[str, object] = {
     "app": {"env": "production"},
+    "issuer": "https://auth.example.test",
+    "audience": "osap-api",
+    "public_base_url": "https://auth.example.test/auth-api",
     "database": {"host": "db", "name": "osap_auth", "user": "osap", "password": "secret"},
     "crypto": {
         "email_hmac_pepper": "email-pepper",
@@ -49,6 +52,7 @@ def _no_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("OSAP_AUTH_ENV", raising=False)
     for name in (
         "OSAP_AUTH_DB_HOST", "OSAP_AUTH_DB_NAME", "OSAP_AUTH_DB_USER", "OSAP_AUTH_DB_PASSWORD",
+        "OSAP_AUTH_ISSUER", "OSAP_AUTH_AUDIENCE", "OSAP_AUTH_PUBLIC_BASE_URL", "OSAP_AUTH_KEY_VERSION",
         "OSAP_AUTH_EMAIL_PEPPER", "OSAP_AUTH_EMAIL_AEAD_KEY", "OSAP_AUTH_TOKEN_PEPPER",
         "OSAP_AUTH_JWT_PRIVATE_KEY", "OSAP_AUTH_JWT_PUBLIC_KEY",
         "OSAP_AUTH_SMTP_HOST", "OSAP_AUTH_SMTP_FROM",
@@ -63,6 +67,9 @@ def test_configuracion_valida_en_produccion_arranca(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     "path",
     [
+        "issuer",
+        "audience",
+        "public_base_url",
         "database.host",
         "database.name",
         "database.user",
@@ -211,5 +218,13 @@ def test_placeholder_secret_no_resuelto_impide_arranque(
 ) -> None:
     data = _copy()
     data["crypto"]["email_hmac_pepper"] = "${OSAP_AUTH_EMAIL_PEPPER}"  # type: ignore[index]
+    with pytest.raises(SystemExit):
+        validate_startup_config(_write(tmp_path, data))
+
+
+
+def test_produccion_rechaza_issuer_y_public_url_sin_https(tmp_path: Path) -> None:
+    data = _copy()
+    data["issuer"] = "http://auth.example.test"
     with pytest.raises(SystemExit):
         validate_startup_config(_write(tmp_path, data))
