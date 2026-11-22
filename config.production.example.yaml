@@ -1,0 +1,62 @@
+# Plantilla de producción para osap-auth.
+# Copiar a config.yaml en el servidor. Sustituir todos los placeholders por secretos
+# suministrados en el entorno; no guardar config.yaml en Git.
+
+app:
+  name: osap-auth
+  env: production
+  debug: false
+
+server:
+  host: 127.0.0.1
+  port: 8200
+
+database:
+  host: 127.0.0.1
+  port: 3306
+  name: osap_auth
+  user: osap_auth
+  password: ${OSAP_AUTH_DB_PASSWORD}
+
+issuer: https://auth.openmusicrepository.com
+audience: osap-api
+public_base_url: https://auth.openmusicrepository.com/auth-api
+web_base_url: https://app.openmusicrepository.com
+site_base_url: https://app.openmusicrepository.com
+
+access_token_ttl_seconds: 900
+refresh_token_ttl_seconds: 2592000
+verification_token_ttl_hours: 24
+password_reset_token_ttl_hours: 1
+
+crypto:
+  email_hmac_pepper: ${OSAP_AUTH_EMAIL_PEPPER}
+  email_aead_key_b64: ${OSAP_AUTH_EMAIL_AEAD_KEY}
+  token_hmac_pepper: ${OSAP_AUTH_TOKEN_PEPPER}
+  jwt_private_key: ${OSAP_AUTH_JWT_PRIVATE_KEY}
+  jwt_public_key: ${OSAP_AUTH_JWT_PUBLIC_KEY}
+  jwt_kid: osap-auth-v1
+
+key_version: 1
+
+smtp:
+  host: ${OSAP_AUTH_SMTP_HOST}
+  port: 465
+  username: ${OSAP_AUTH_SMTP_USERNAME}
+  password: ${OSAP_AUTH_SMTP_PASSWORD}
+  from_address: no-reply@openmusicrepository.com
+  ssl: true
+  starttls: false
+
+cors_origins:
+  - https://app.openmusicrepository.com
+
+rate_limit:
+  register_per_minute: 10
+  login_per_minute: 20
+  resend_verification_per_minute: 5
+  password_reset_request_per_minute: 5
+  password_reset_confirm_per_minute: 10
+
+audit:
+  retention_days: 90
