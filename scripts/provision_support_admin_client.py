@@ -9,7 +9,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import sys
 
 from domain.entities.service_client import ServiceClient
 from infrastructure.config import load_settings
@@ -19,10 +18,8 @@ from infrastructure.db.connection import create_pool
 from infrastructure.repositories.sql_service_client_repository import SqlServiceClientRepository
 
 
-def build_client() -> tuple[ServiceClient, str]:
+def build_client(pepper: str) -> tuple[ServiceClient, str]:
     """Crea credenciales nuevas con el mínimo privilegio requerido por osap-support."""
-    settings = load_settings()
-    pepper = settings.crypto.token_hmac_pepper or settings.crypto.email_hmac_pepper
     if not pepper:
         raise RuntimeError(
             "Falta OSAP_AUTH_TOKEN_PEPPER (o OSAP_AUTH_EMAIL_PEPPER como fallback)"
@@ -39,7 +36,8 @@ def build_client() -> tuple[ServiceClient, str]:
 
 async def provision() -> tuple[str, str]:
     settings = load_settings()
-    client, secret = build_client()
+    pepper = settings.crypto.token_hmac_pepper or settings.crypto.email_hmac_pepper
+    client, secret = build_client(pepper)
     pool = await create_pool(
         host=settings.database.host,
         port=settings.database.port,
