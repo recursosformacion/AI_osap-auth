@@ -43,7 +43,7 @@ class ServiceClient:
         self.scopes = scopes
         self.enabled = enabled
         self.allowed_audiences = allowed_audiences or []
-        self.created_at = created_at
+        self.created_at = created_at or datetime.now(UTC)
 
     @classmethod
     def new(
