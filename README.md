@@ -39,9 +39,17 @@ cryptographic keys, missing SMTP host, and non-HTTPS public issuer/URL settings.
 ## Cliente M2M dedicado para administración de Support
 
 `osap-api` utiliza un cliente de servicio independiente para operaciones administrativas
-contra `osap-support`. El provisionador `scripts/provision_support_admin_client.py` crea
-`osap-support-admin-service` con una única audiencia (`osap-support`) y un único scope
-(`support:admin`). Auth almacena solo el hash HMAC del secreto.
+contra `osap-support`. El provisionador `scripts/provision_support_admin_client.py`
+reconcilia de forma idempotente el estado declarado:
+
+- UUID: `OSAP_SUPPORT_ADMIN_CLIENT_ID`
+- Secreto: `OSAP_SUPPORT_ADMIN_CLIENT_SECRET`
+- Audiencia única: `osap-support`
+- Scope único: `support:admin`
+
+Auth almacena únicamente el hash HMAC del secreto. El UUID y el secreto deben ser los
+mismos que se configuren en el entorno de desarrollo de `osap-api`; no se generan
+identificadores aleatorios en cada ejecución.
 
 La ejecución sin argumentos es un dry-run y no conecta con la base de datos:
 
@@ -49,14 +57,14 @@ La ejecución sin argumentos es un dry-run y no conecta con la base de datos:
 python -m scripts.provision_support_admin_client
 ```
 
-Solo tras revisar el destino y la configuración de Auth, provisionar explícitamente:
+Para aplicar, el comando exige confirmar el nombre exacto de la base de datos Auth.
+Además, bloquea explícitamente los entornos `prod` y `production`:
 
 ```bash
-python -m scripts.provision_support_admin_client --apply
+OSAP_SUPPORT_ADMIN_CLIENT_ID=<UUID>
+OSAP_SUPPORT_ADMIN_CLIENT_SECRET=<secreto>
+python -m scripts.provision_support_admin_client --apply --confirm-database <nombre-bd-dev>
 ```
 
-El comando muestra el UUID y el secreto una sola vez. Guardar ambos en el gestor de
-secretos del entorno de osap-api como `OSAP_SUPPORT_ADMIN_CLIENT_ID` y
-`OSAP_SUPPORT_ADMIN_CLIENT_SECRET`. No guardar el secreto en Git, archivos de
-configuración versionados ni logs. Ejecutar una sola vez por entorno.
-
+La operación es un UPSERT por UUID: repetirla reconcilia scopes, audiencia, habilitación
+y hash del secreto sin crear clientes duplicados. No guardar el secreto en Git ni en logs.
