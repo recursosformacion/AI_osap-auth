@@ -35,3 +35,28 @@ template and copy it to `config.yaml` on the server. The issuer is the root Auth
 prefix (`/auth-api`). Supply every `${OSAP_AUTH_*}` placeholder through the service
 environment or secret manager. Production startup rejects unresolved placeholders, missing
 cryptographic keys, missing SMTP host, and non-HTTPS public issuer/URL settings.
+
+## Cliente M2M dedicado para administración de Support
+
+`osap-api` utiliza un cliente de servicio independiente para operaciones administrativas
+contra `osap-support`. El provisionador `scripts/provision_support_admin_client.py` crea
+`osap-support-admin-service` con una única audiencia (`osap-support`) y un único scope
+(`support:admin`). Auth almacena solo el hash HMAC del secreto.
+
+La ejecución sin argumentos es un dry-run y no conecta con la base de datos:
+
+```bash
+python -m scripts.provision_support_admin_client
+```
+
+Solo tras revisar el destino y la configuración de Auth, provisionar explícitamente:
+
+```bash
+python -m scripts.provision_support_admin_client --apply
+```
+
+El comando muestra el UUID y el secreto una sola vez. Guardar ambos en el gestor de
+secretos del entorno de osap-api como `OSAP_SUPPORT_ADMIN_CLIENT_ID` y
+`OSAP_SUPPORT_ADMIN_CLIENT_SECRET`. No guardar el secreto en Git, archivos de
+configuración versionados ni logs. Ejecutar una sola vez por entorno.
+
